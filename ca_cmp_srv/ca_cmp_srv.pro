@@ -10,9 +10,9 @@ SOURCES += \
 INCLUDEPATH += "../../PKILib"
 
 mac {
-    INCLUDEPATH += "../../PKILib/lib/mac/cmpossl/include"
+    INCLUDEPATH += "../../PKILib/lib/mac/debug/cmpossl/include"
     LIBS += -L"../../build-PKILib-Desktop_Qt_5_11_3_clang_64bit-Debug" -lPKILib
-    LIBS += -L"../../PKILib/lib/mac/cmpossl/lib" -lcrypto -lssl
+    LIBS += -L"../../PKILib/lib/mac/debug/cmpossl/lib" -lcrypto -lssl
 }
 
 win32 {

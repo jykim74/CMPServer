@@ -1,18 +1,38 @@
-#include <stdio.h>
+﻿#include <stdio.h>
 
+#include "openssl/evp.h"
+#include "openssl/cmp.h"
 #include "js_process.h"
 #include "js_http.h"
 #include "js_cmp.h"
 
-int testCMP( int nType )
+BIN     binRef = {0,0};
+BIN     binMsg = {0,0};
+BIN     binSecret = {0,0};
+BIN     binSignCert = {0,0};
+BIN     binSignPri= {0,0};
+
+void testInit()
+{
+    JS_BIN_set( &binRef, (const unsigned char *)"12345678", 8 );
+    JS_BIN_set( &binSecret, (const unsigned char *)"0123456789ABCDEF", 16 );
+    JS_BIN_fileRead( "/Users/jykim/work/PKITester/data/user_cert.der", &binSignCert );
+    JS_BIN_fileRead( "/Users/jykim/work/PKITester/data/user_prikey.der", &binSignPri );
+}
+
+int testReqCMP( int nType )
 {
     int     ret = 0;
-    BIN     binRef = {0,0};
-    BIN     binMsg = {0,0};
+    int     nErrCode = -1;
 
     int     nOutLen = 0;
     unsigned char       *pOut = NULL;
     char        *pHex = NULL;
+    X509        *pXSignCert = NULL;
+    EVP_PKEY    *pESignPri = NULL;
+
+    const unsigned char *pPosSignCert = NULL;
+    const unsigned char *pPosSignPri = NULL;
 
     OSSL_CMP_ITAV   *pITAV = NULL;
 
@@ -24,26 +44,82 @@ int testCMP( int nType )
         return -1;
     }
 
-    JS_BIN_set( &binRef, (const unsigned char *)"12345678", 8 );
+    pPosSignCert = binSignCert.pVal;
+    pPosSignPri = binSignPri.pVal;
 
-    OSSL_CMP_CTX_set1_referenceValue( pCTX, binRef.pVal, binRef.nLen );
+    pXSignCert = d2i_X509( NULL, &pPosSignCert, binSignCert.nLen );
+    pESignPri = d2i_PrivateKey( EVP_PKEY_RSA, NULL, &pPosSignPri, binSignPri.nLen );
 
-    OSSL_CMP_MSG    *pMsg = NULL;
-    pMsg = OSSL_CMP_MSG_create( pCTX, nType );
-    if( pMsg == NULL )
+    if( nType == OSSL_CMP_PKIBODY_IR || nType == OSSL_CMP_PKIBODY_CR  )
     {
-        fprintf( stderr, "CMP Msg is null\n" );
-        return -1;
+        OSSL_CMP_CTX_set1_referenceValue( pCTX, binRef.pVal, binRef.nLen );
+        OSSL_CMP_CTX_set1_secretValue( pCTX, binSecret.pVal, binSecret.nLen );
+
+        OSSL_CMP_CTX_set1_pkey( pCTX, pESignPri );
+        OSSL_CMP_CTX_set1_newPkey( pCTX, pESignPri );
+    }
+    else if( nType == OSSL_CMP_PKIBODY_KUR )
+    {
+        OSSL_CMP_CTX_set1_clCert( pCTX, pXSignCert );
+        OSSL_CMP_CTX_set1_pkey( pCTX, pESignPri );
+        // OSSL_CMP_CTX_set1_newPkey( pCTX, pESignPri );
+    }
+    else if( nType == OSSL_CMP_PKIBODY_RR )
+    {
+        int nReason = CRL_REASON_SUPERSEDED;
+        OSSL_CMP_CTX_set1_clCert( pCTX, pXSignCert );
+        OSSL_CMP_CTX_set1_pkey( pCTX, pESignPri );
+        OSSL_CMP_CTX_set1_oldClCert( pCTX, pXSignCert );
+        (void)OSSL_CMP_CTX_set_option( pCTX, OSSL_CMP_OPT_REVOCATION_REASON, nReason );
+    }
+    else if( nType == OSSL_CMP_PKIBODY_GENM )
+    {
+//        OSSL_CMP_CTX_set1_referenceValue( pCTX, binRef.pVal, binRef.nLen );
+//        OSSL_CMP_CTX_set1_secretValue( pCTX, binSecret.pVal, binSecret.nLen );
+        OSSL_CMP_CTX_set1_clCert( pCTX, pXSignCert );
+        OSSL_CMP_CTX_set1_pkey( pCTX, pESignPri );
+    }
+    else if( nType == OSSL_CMP_PKIBODY_CERTCONF )
+    {
+//        OSSL_CMP_CTX_set1_referenceValue( pCTX, binRef.pVal, binRef.nLen );
+//        OSSL_CMP_CTX_set1_secretValue( pCTX, binSecret.pVal, binSecret.nLen );
+        OSSL_CMP_CTX_set1_clCert( pCTX, pXSignCert );
+        OSSL_CMP_CTX_set1_pkey( pCTX, pESignPri );
+
+        CMP_CTX_set1_newClCert( pCTX, pXSignCert );
     }
 
-    ret = OSSL_CMP_MSG_protect( pCTX, pMsg );
-    if( ret != 1 )
+    OSSL_CMP_MSG    *pMsg = NULL;
+
+    if( nType == OSSL_CMP_PKIBODY_CR
+            || nType == OSSL_CMP_PKIBODY_IR
+            || nType == OSSL_CMP_PKIBODY_P10CR
+            || nType == OSSL_CMP_PKIBODY_KUR )
     {
-        fprintf( stderr, "fail to protect msg(%d)\n", ret );
+        pMsg = OSSL_CMP_certreq_new( pCTX, nType, nErrCode );
+    }
+    else if( nType == OSSL_CMP_PKIBODY_RR )
+    {
+        pMsg = OSSL_CMP_rr_new( pCTX );
+    }
+    else if( nType == OSSL_CMP_PKIBODY_GENM )
+    {
+        pMsg = OSSL_CMP_genm_new( pCTX );
+    }
+    else if( nType == OSSL_CMP_PKIBODY_CERTCONF )
+    {
+        pMsg = OSSL_CMP_certConf_new( pCTX, nErrCode, "CertConf" );
     }
     else
     {
-        printf( "Success to make protect\n" );
+        fprintf( stderr, "Invalid Req Type(%d)\n", nType );
+        return -1;
+    }
+
+    if( pMsg == NULL )
+    {
+        fprintf( stderr, "fail to get CMP_MSG\n" );
+        return -1;
     }
 
     nOutLen = i2d_OSSL_CMP_MSG( pMsg, &pOut );
@@ -52,6 +128,131 @@ int testCMP( int nType )
     JS_BIN_set( &binMsg, pOut, nOutLen );
     JS_BIN_encodeHex( &binMsg, &pHex );
     if( pHex ) printf( "%s\n", pHex );
+    printf( "%d Type done\n", nType );
+
+    OSSL_CMP_CTX_free( pCTX );
+    if( pXSignCert ) X509_free( pXSignCert );
+    if( pESignPri ) EVP_PKEY_free( pESignPri );
+
+    return 0;
+}
+
+int testRspCMP( int nType )
+{
+    int     ret = 0;
+    int     nErrCode = -1;
+
+    int     nOutLen = 0;
+    unsigned char       *pOut = NULL;
+    char        *pHex = NULL;
+    X509        *pXSignCert = NULL;
+    EVP_PKEY    *pESignPri = NULL;
+
+    const unsigned char *pPosSignCert = NULL;
+    const unsigned char *pPosSignPri = NULL;
+
+    int nCertReqId = -1;
+    OSSL_CMP_PKISI  *pXSI = NULL;
+    STACK_OF(X509)  *pXChain = NULL;
+    STACK_OF(X509)  *pXCaPubs = NULL;
+    int             nEncrypted = 0;
+    int             nUnprotectedError = -1;
+
+    OSSL_CRMF_CERTID    *pXCertID = NULL;
+
+    OSSL_CMP_ITAV   *pITAV = NULL;
+
+    OSSL_CMP_CTX    *pCTX = NULL;
+    pCTX = OSSL_CMP_CTX_new();
+    if( pCTX == NULL )
+    {
+        fprintf( stderr, "CMP CTX is null\n" );
+        return -1;
+    }
+
+    pPosSignCert = binSignCert.pVal;
+    pPosSignPri = binSignPri.pVal;
+
+    pXSignCert = d2i_X509( NULL, &pPosSignCert, binSignCert.nLen );
+    pESignPri = d2i_PrivateKey( EVP_PKEY_RSA, NULL, &pPosSignPri, binSignPri.nLen );
+
+
+    if( nType == OSSL_CMP_PKIBODY_CP || nType == OSSL_CMP_PKIBODY_IP )
+    {
+        int nStatus = OSSL_CMP_PKISTATUS_accepted;
+        int nFailInfo = 0;
+
+        pXSI = OSSL_CMP_statusInfo_new( nStatus, nFailInfo, "accepted" );
+
+        OSSL_CMP_CTX_set1_pkey( pCTX, pESignPri );
+        OSSL_CMP_CTX_set1_newPkey( pCTX, pESignPri );
+        OSSL_CMP_CTX_set1_clCert( pCTX, pXSignCert );
+    }
+    else if( nType == OSSL_CMP_PKIBODY_KUP )
+    {
+        int nStatus = OSSL_CMP_PKISTATUS_accepted;
+        int nFailInfo = 0;
+
+        pXSI = OSSL_CMP_statusInfo_new( nStatus, nFailInfo, "accepted" );
+        OSSL_CMP_CTX_set1_clCert( pCTX, pXSignCert );
+        OSSL_CMP_CTX_set1_pkey( pCTX, pESignPri );
+    }
+    else if( nType == OSSL_CMP_PKIBODY_RP )
+    {
+        int nStatus = OSSL_CMP_PKISTATUS_accepted;
+        int nFailInfo = 0;
+
+        pXSI = OSSL_CMP_statusInfo_new( nStatus, nFailInfo, "accepted" );
+
+        OSSL_CMP_CTX_set1_clCert( pCTX, pXSignCert );
+        OSSL_CMP_CTX_set1_pkey( pCTX, pESignPri );
+    }
+    else if( nType == OSSL_CMP_PKIBODY_GENP )
+    {
+        OSSL_CMP_CTX_set1_clCert( pCTX, pXSignCert );
+        OSSL_CMP_CTX_set1_pkey( pCTX, pESignPri );
+    }
+    else
+    {
+        fprintf( stderr, "Invalid Rsp Type(%d)\n", nType );
+        return -1;
+    }
+
+    OSSL_CMP_MSG    *pMsg = NULL;
+
+    if( nType == OSSL_CMP_PKIBODY_IP
+            || nType == OSSL_CMP_PKIBODY_CP
+            || nType == OSSL_CMP_PKIBODY_KUP )
+    {
+        pMsg = OSSL_CMP_certrep_new( pCTX, nType, nCertReqId, pXSI, pXSignCert, pXChain, pXCaPubs, nEncrypted, nUnprotectedError );
+    }
+    else if( nType == OSSL_CMP_PKIBODY_RP )
+    {
+        pMsg = OSSL_CMP_rp_new( pCTX, pXSI, pXCertID, nUnprotectedError );
+    }
+    else if( nType == OSSL_CMP_PKIBODY_GENP )
+    {
+        pMsg = OSSL_CMP_genp_new( pCTX );
+    }
+
+
+    if( pMsg == NULL )
+    {
+        fprintf( stderr, "fail to get CMP_MSG\n" );
+        return -1;
+    }
+
+    nOutLen = i2d_OSSL_CMP_MSG( pMsg, &pOut );
+    printf( "OutLen: %d\n", nOutLen );
+
+    JS_BIN_set( &binMsg, pOut, nOutLen );
+    JS_BIN_encodeHex( &binMsg, &pHex );
+    if( pHex ) printf( "%s\n", pHex );
+    printf( "%d Type done\n", nType );
+
+    OSSL_CMP_CTX_free( pCTX );
+    if( pXSignCert ) X509_free( pXSignCert );
+    if( pESignPri ) EVP_PKEY_free( pESignPri );
 
     return 0;
 }
@@ -59,10 +260,27 @@ int testCMP( int nType )
 int main()
 {
     int ret = 0;
-    int     nType = OSSL_CMP_PKIBODY_IR;
+//    int     nType = OSSL_CMP_PKIBODY_IR;
+//    int     nType = OSSL_CMP_PKIBODY_CR;
+//    int     nType = OSSL_CMP_PKIBODY_RR;
+//    int     nType = OSSL_CMP_PKIBODY_KUR;
+//    int     nType = OSSL_CMP_PKIBODY_GENM;
+    int     nType = OSSL_CMP_PKIBODY_CERTCONF;
 
-    ret = testCMP( nType );
+    testInit();
 
-    printf( "Ret: %d\n", ret );
+#if 0
+    ret = testReqCMP( nType );
+    printf( "Req Ret : %d\n", ret );
+#endif
+
+//    int     nRspType = OSSL_CMP_PKIBODY_CP;
+//    int     nRspType = OSSL_CMP_PKIBODY_IP;
+//    int     nRspType = OSSL_CMP_PKIBODY_RP;
+//    int     nRspType = OSSL_CMP_PKIBODY_KUP;
+    int     nRspType = OSSL_CMP_PKIBODY_GENP;
+
+    ret = testRspCMP( nRspType );
+    printf( "Rsp Ret: %d\n", ret );
     return 0;
 }

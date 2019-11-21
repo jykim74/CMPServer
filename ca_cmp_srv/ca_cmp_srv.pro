@@ -5,6 +5,7 @@ CONFIG -= qt
 
 SOURCES += \
         cmp_proc.c \
+        cmp_srv.c \
         main.c
 
 INCLUDEPATH += "../../PKILib"

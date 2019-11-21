@@ -2,9 +2,11 @@
 
 #include "openssl/evp.h"
 #include "openssl/cmp.h"
+
 #include "js_process.h"
 #include "js_http.h"
 #include "js_cmp.h"
+
 
 BIN     binRef = {0,0};
 BIN     binMsg = {0,0};
@@ -137,6 +139,37 @@ int testReqCMP( int nType )
     return 0;
 }
 
+int testReqParse()
+{
+    int         ret = 0;
+    unsigned char       *pPosCMP = NULL;
+    OSSL_CMP_MSG        *pMsg = NULL;
+    OSSL_CMP_PKIHEADER  *pHeader = NULL;
+    int         nType = -1;
+    OSSL_CMP_CTX        *pCTX = NULL;
+
+    pPosCMP = binMsg.pVal;
+
+    pMsg = d2i_OSSL_CMP_MSG( NULL, &pPosCMP, binMsg.nLen );
+    if( pMsg == NULL )
+    {
+        fprintf( stderr, "Invalid CMP MSG\n" );
+        return -1;
+    }
+
+    nType = OSSL_CMP_MSG_get_bodytype( pMsg );
+    pHeader = OSSL_CMP_MSG_get0_header( pMsg );
+
+    pCTX = OSSL_CMP_CTX_new();
+    OSSL_CMP_MSG_check_received( pCTX, pMsg, NULL, 0 );
+
+
+
+
+
+    return 0;
+}
+
 int testRspCMP( int nType )
 {
     int     ret = 0;
@@ -202,6 +235,8 @@ int testRspCMP( int nType )
         int nStatus = OSSL_CMP_PKISTATUS_accepted;
         int nFailInfo = 0;
 
+        pXCertID = OSSL_CRMF_CERTID_gen( X509_get_subject_name( pXSignCert), X509_get_serialNumber(pXSignCert));
+
         pXSI = OSSL_CMP_statusInfo_new( nStatus, nFailInfo, "accepted" );
 
         OSSL_CMP_CTX_set1_clCert( pCTX, pXSignCert );
@@ -257,7 +292,7 @@ int testRspCMP( int nType )
     return 0;
 }
 
-int main()
+int test_main()
 {
     int ret = 0;
 //    int     nType = OSSL_CMP_PKIBODY_IR;
@@ -269,18 +304,22 @@ int main()
 
     testInit();
 
-#if 0
+#if 1
     ret = testReqCMP( nType );
     printf( "Req Ret : %d\n", ret );
+    ret = testReqParse();
+    printf( "Req Parse Ret : %d\n", ret );
 #endif
 
 //    int     nRspType = OSSL_CMP_PKIBODY_CP;
 //    int     nRspType = OSSL_CMP_PKIBODY_IP;
-//    int     nRspType = OSSL_CMP_PKIBODY_RP;
+    int     nRspType = OSSL_CMP_PKIBODY_RP;
 //    int     nRspType = OSSL_CMP_PKIBODY_KUP;
-    int     nRspType = OSSL_CMP_PKIBODY_GENP;
-
+//    int     nRspType = OSSL_CMP_PKIBODY_GENP;
+#if 0
     ret = testRspCMP( nRspType );
     printf( "Rsp Ret: %d\n", ret );
+#endif
+
     return 0;
 }

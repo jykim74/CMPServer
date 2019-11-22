@@ -22,6 +22,9 @@ void testInit()
     JS_BIN_fileRead( "/Users/jykim/work/PKITester/data/user_prikey.der", &binSignPri );
 }
 
+
+
+
 int testReqCMP( int nType )
 {
     int     ret = 0;

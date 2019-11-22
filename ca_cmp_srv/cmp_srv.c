@@ -3,6 +3,8 @@
 #include "openssl/cmp.h"
 
 #include "js_pki.h"
+#include "js_http.h"
+
 #include "js_process.h"
 #include "cmp_srv.h"
 
@@ -256,6 +258,113 @@ int CMP_TestService( JThreadInfo *pThInfo )
     return 0;
 }
 
+int CMP_Service( JThreadInfo *pThInfo )
+{
+    int ret = 0;
+
+    BIN     binReq = {0,0};
+    BIN     binRsp = {0,0};
+    char    *pHex = NULL;
+
+    OSSL_CMP_MSG    *pReqMsg = NULL;
+    OSSL_CMP_MSG    *pRspMsg = NULL;
+
+    int nStatusCode = -1;
+    JSNameValList   *pHeaderList = NULL;
+
+
+    OSSL_CMP_SRV_CTX *pSrvCTX = setupServerCTX();
+    OSSL_CMP_CTX *pCTX = OSSL_CMP_SRV_CTX_get0_ctx( pSrvCTX );
+
+    int     nOutLen = 0;
+    unsigned char   *pOut = NULL;
+    unsigned char   *pPosReq = binReq.pVal;
+
+    ret = JS_HTTP_recvBin( pThInfo->nSockFd, &nStatusCode, &pHeaderList, &binReq );
+
+    /* read request body */
+
+    pReqMsg = d2i_OSSL_CMP_MSG( NULL, &pPosReq, binReq.nLen );
+    if( pReqMsg == NULL )
+    {
+        fprintf( stderr, "ReqMsg is null\n" );
+        ret = -1;
+        goto end;
+    }
+
+    int nReqType = OSSL_CMP_MSG_get_bodytype( pReqMsg );
+
+    if( nReqType == OSSL_CMP_PKIBODY_IR || nReqType == OSSL_CMP_PKIBODY_CR )
+    {
+        BIN binSecret = {0,0};
+
+        JS_BIN_set( &binSecret, (unsigned char *)"0123456789ABCDEF", 16 );
+        OSSL_CMP_CTX_set1_secretValue( pCTX, binSecret.pVal, binSecret.nLen );
+    }
+    else if( nReqType == OSSL_CMP_PKIBODY_KUR )
+    {
+        unsigned char *pPosSignCert = g_binSignCert.pVal;
+        X509 *pXSignCert = NULL;
+
+        pXSignCert = d2i_X509( NULL, &pPosSignCert, g_binSignCert.nLen );
+
+        OSSL_CMP_CTX_set1_untrusted_certs( pCTX, pXSignCert );
+    }
+    else if( nReqType == OSSL_CMP_PKIBODY_RR )
+    {
+        unsigned char *pPosSignCert = g_binSignCert.pVal;
+        X509 *pXSignCert = NULL;
+
+        pXSignCert = d2i_X509( NULL, &pPosSignCert, g_binSignCert.nLen );
+
+        OSSL_CMP_CTX_set1_untrusted_certs( pCTX, pXSignCert );
+        OSSL_CMP_SRV_CTX_set1_certOut( pSrvCTX, pXSignCert );
+    }
+    else if( nReqType == OSSL_CMP_PKIBODY_CERTCONF )
+    {
+        unsigned char *pPosSignCert = g_binSignCert.pVal;
+        X509 *pXSignCert = NULL;
+
+        pXSignCert = d2i_X509( NULL, &pPosSignCert, g_binSignCert.nLen );
+        OSSL_CMP_SRV_CTX_set1_certOut( pSrvCTX, pXSignCert );
+    }
+
+    ret = OSSL_CMP_CTX_set_transfer_cb_arg( pCTX, pSrvCTX );
+    ret = OSSL_CMP_mock_server_perform( pCTX, pReqMsg, &pRspMsg );
+
+    printf( "mock_server ret: %d\n", ret );
+
+    if( pRspMsg == NULL )
+    {
+        fprintf( stderr, "Rsp is null\n" );
+        ret = -1;
+        goto end;
+    }
+
+    nOutLen = i2d_OSSL_CMP_MSG( pRspMsg, &pOut );
+    if( nOutLen > 0 )
+    {
+        JS_BIN_set( &binRsp, pOut, nOutLen );
+        JS_BIN_encodeHex( &binRsp, &pHex );
+        printf( "Rsp : %s\n", pHex );
+    }
+
+    ret = JS_HTTP_sendBin( pThInfo->nSockFd, "POST", pHeaderList, &binRsp );
+    /* send response body */
+end:
+    JS_BIN_reset( &binReq );
+    JS_BIN_reset( &binRsp );
+    if( pReqMsg ) OSSL_CMP_MSG_free( pReqMsg );
+    if( pRspMsg ) OSSL_CMP_MSG_free( pRspMsg );
+    if( pHex ) JS_free( pHex );
+    if( pOut ) OPENSSL_free( pOut );
+    if( pSrvCTX ) OSSL_CMP_SRV_CTX_free( pSrvCTX );
+    if( pHeaderList ) JS_UTIL_resetNameValList( &pHeaderList );
+
+    return 0;
+}
+
+
 int CMP_SSL_Service( JThreadInfo *pThInfo )
 {
     return 0;
@@ -283,14 +392,14 @@ int main( int argc, char *argv[] )
 {
     Init();
 
-    CMP_TestService( NULL );
+//    CMP_TestService( NULL );
 
-    /*
+
     JS_THD_logInit( "./log", "cmp", 2 );
     JS_THD_registerService( "JS_CMP", NULL, 9010, 4, NULL, CMP_Service );
     JS_THD_registerService( "JS_CMP_SSL", NULL, 9110, 4, NULL, CMP_SSL_Service );
     JS_THD_serviceStartAll();
-    */
+
 
     return 0;
 }

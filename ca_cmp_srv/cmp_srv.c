@@ -269,7 +269,7 @@ int CMP_Service( JThreadInfo *pThInfo )
     OSSL_CMP_MSG    *pReqMsg = NULL;
     OSSL_CMP_MSG    *pRspMsg = NULL;
 
-    int nStatusCode = -1;
+    char    *pMethInfo = NULL;
     JSNameValList   *pHeaderList = NULL;
 
 
@@ -280,7 +280,7 @@ int CMP_Service( JThreadInfo *pThInfo )
     unsigned char   *pOut = NULL;
     unsigned char   *pPosReq = binReq.pVal;
 
-    ret = JS_HTTP_recvBin( pThInfo->nSockFd, &nStatusCode, &pHeaderList, &binReq );
+    ret = JS_HTTP_recvBin( pThInfo->nSockFd, &pMethInfo, &pHeaderList, &binReq );
 
     /* read request body */
 
@@ -349,7 +349,7 @@ int CMP_Service( JThreadInfo *pThInfo )
         printf( "Rsp : %s\n", pHex );
     }
 
-    ret = JS_HTTP_sendBin( pThInfo->nSockFd, "POST", pHeaderList, &binRsp );
+    ret = JS_HTTP_sendBin( pThInfo->nSockFd, JS_HTTP_OK, pHeaderList, &binRsp );
     /* send response body */
 end:
     JS_BIN_reset( &binReq );
@@ -360,6 +360,7 @@ end:
     if( pOut ) OPENSSL_free( pOut );
     if( pSrvCTX ) OSSL_CMP_SRV_CTX_free( pSrvCTX );
     if( pHeaderList ) JS_UTIL_resetNameValList( &pHeaderList );
+    if( pMethInfo ) JS_free( pMethInfo );
 
     return 0;
 }

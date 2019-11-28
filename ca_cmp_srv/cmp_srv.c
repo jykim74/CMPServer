@@ -264,102 +264,43 @@ int CMP_Service( JThreadInfo *pThInfo )
 
     BIN     binReq = {0,0};
     BIN     binRsp = {0,0};
-    char    *pHex = NULL;
-
-    OSSL_CMP_MSG    *pReqMsg = NULL;
-    OSSL_CMP_MSG    *pRspMsg = NULL;
 
     char    *pMethInfo = NULL;
     JSNameValList   *pHeaderList = NULL;
-
-
-    OSSL_CMP_SRV_CTX *pSrvCTX = setupServerCTX();
-    OSSL_CMP_CTX *pCTX = OSSL_CMP_SRV_CTX_get0_ctx( pSrvCTX );
-
-    int     nOutLen = 0;
-    unsigned char   *pOut = NULL;
-    unsigned char   *pPosReq = binReq.pVal;
+    JSNameValList   *pRspHeaderList = NULL;
 
     ret = JS_HTTP_recvBin( pThInfo->nSockFd, &pMethInfo, &pHeaderList, &binReq );
+    if( ret != 0 )
+    {
+        fprintf( stderr, "fail to receive message(%d)\n", ret );
+        goto end;
+    }
 
     /* read request body */
-
-    pReqMsg = d2i_OSSL_CMP_MSG( NULL, &pPosReq, binReq.nLen );
-    if( pReqMsg == NULL )
+    ret = procCMP( &binReq, &binRsp );
+    if( ret != 0 )
     {
-        fprintf( stderr, "ReqMsg is null\n" );
-        ret = -1;
+        fprintf( stderr, "fail to run CMP(%d)\n", ret );
         goto end;
     }
 
-    int nReqType = OSSL_CMP_MSG_get_bodytype( pReqMsg );
+    JS_UTIL_createNameValList2("accept", "application/json", &pRspHeaderList);
+    JS_UTIL_appendNameValList2( pRspHeaderList, "content-type", "application/json");
 
-    if( nReqType == OSSL_CMP_PKIBODY_IR || nReqType == OSSL_CMP_PKIBODY_CR )
+    ret = JS_HTTP_sendBin( pThInfo->nSockFd, JS_HTTP_OK, pRspHeaderList, &binRsp );
+    if( ret != 0 )
     {
-        BIN binSecret = {0,0};
-
-        JS_BIN_set( &binSecret, (unsigned char *)"0123456789ABCDEF", 16 );
-        OSSL_CMP_CTX_set1_secretValue( pCTX, binSecret.pVal, binSecret.nLen );
-    }
-    else if( nReqType == OSSL_CMP_PKIBODY_KUR )
-    {
-        unsigned char *pPosSignCert = g_binSignCert.pVal;
-        X509 *pXSignCert = NULL;
-
-        pXSignCert = d2i_X509( NULL, &pPosSignCert, g_binSignCert.nLen );
-
-        OSSL_CMP_CTX_set1_untrusted_certs( pCTX, pXSignCert );
-    }
-    else if( nReqType == OSSL_CMP_PKIBODY_RR )
-    {
-        unsigned char *pPosSignCert = g_binSignCert.pVal;
-        X509 *pXSignCert = NULL;
-
-        pXSignCert = d2i_X509( NULL, &pPosSignCert, g_binSignCert.nLen );
-
-        OSSL_CMP_CTX_set1_untrusted_certs( pCTX, pXSignCert );
-        OSSL_CMP_SRV_CTX_set1_certOut( pSrvCTX, pXSignCert );
-    }
-    else if( nReqType == OSSL_CMP_PKIBODY_CERTCONF )
-    {
-        unsigned char *pPosSignCert = g_binSignCert.pVal;
-        X509 *pXSignCert = NULL;
-
-        pXSignCert = d2i_X509( NULL, &pPosSignCert, g_binSignCert.nLen );
-        OSSL_CMP_SRV_CTX_set1_certOut( pSrvCTX, pXSignCert );
-    }
-
-    ret = OSSL_CMP_CTX_set_transfer_cb_arg( pCTX, pSrvCTX );
-    ret = OSSL_CMP_mock_server_perform( pCTX, pReqMsg, &pRspMsg );
-
-    printf( "mock_server ret: %d\n", ret );
-
-    if( pRspMsg == NULL )
-    {
-        fprintf( stderr, "Rsp is null\n" );
-        ret = -1;
+        fprintf( stderr, "fail to send message(%d)\n", ret );
         goto end;
     }
-
-    nOutLen = i2d_OSSL_CMP_MSG( pRspMsg, &pOut );
-    if( nOutLen > 0 )
-    {
-        JS_BIN_set( &binRsp, pOut, nOutLen );
-        JS_BIN_encodeHex( &binRsp, &pHex );
-        printf( "Rsp : %s\n", pHex );
-    }
-
-    ret = JS_HTTP_sendBin( pThInfo->nSockFd, JS_HTTP_OK, pHeaderList, &binRsp );
     /* send response body */
 end:
     JS_BIN_reset( &binReq );
     JS_BIN_reset( &binRsp );
-    if( pReqMsg ) OSSL_CMP_MSG_free( pReqMsg );
-    if( pRspMsg ) OSSL_CMP_MSG_free( pRspMsg );
-    if( pHex ) JS_free( pHex );
-    if( pOut ) OPENSSL_free( pOut );
-    if( pSrvCTX ) OSSL_CMP_SRV_CTX_free( pSrvCTX );
+
     if( pHeaderList ) JS_UTIL_resetNameValList( &pHeaderList );
+    if( pRspHeaderList ) JS_UTIL_resetNameValList( &pRspHeaderList );
+
     if( pMethInfo ) JS_free( pMethInfo );
 
     return 0;

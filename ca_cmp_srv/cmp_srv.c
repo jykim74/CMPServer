@@ -397,8 +397,8 @@ int main( int argc, char *argv[] )
 
 
     JS_THD_logInit( "./log", "cmp", 2 );
-    JS_THD_registerService( "JS_CMP", NULL, 9010, 4, NULL, CMP_Service );
-    JS_THD_registerService( "JS_CMP_SSL", NULL, 9110, 4, NULL, CMP_SSL_Service );
+    JS_THD_registerService( "JS_CMP", NULL, 9000, 4, NULL, CMP_Service );
+    JS_THD_registerService( "JS_CMP_SSL", NULL, 9100, 4, NULL, CMP_SSL_Service );
     JS_THD_serviceStartAll();
 
 

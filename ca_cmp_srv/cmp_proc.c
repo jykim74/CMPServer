@@ -46,6 +46,16 @@ int procCMP( const BIN *pReq, BIN *pRsp )
 
         JS_BIN_set( &binSecret, (unsigned char *)"0123456789ABCDEF", 16 );
         OSSL_CMP_CTX_set1_secretValue( pCTX, binSecret.pVal, binSecret.nLen );
+
+        if( nReqType == OSSL_CMP_PKIBODY_IR || nReqType == OSSL_CMP_PKIBODY_CR )
+        {
+            unsigned char *pPosSignCert = g_binSignCert.pVal;
+
+            pXSignCert = d2i_X509( NULL, &pPosSignCert, g_binSignCert.nLen );
+            sk_X509_push( pXCerts, pXSignCert );
+            OSSL_CMP_CTX_set1_untrusted_certs( pCTX, pXCerts );
+            OSSL_CMP_SRV_CTX_set1_certOut( pSrvCTX, pXSignCert );
+        }
     }
     else if( nReqType == OSSL_CMP_PKIBODY_KUR )
     {
@@ -55,6 +65,7 @@ int procCMP( const BIN *pReq, BIN *pRsp )
 
         sk_X509_push( pXCerts, pXSignCert );
         OSSL_CMP_CTX_set1_untrusted_certs( pCTX, pXCerts );
+        OSSL_CMP_SRV_CTX_set1_certOut( pSrvCTX, pXSignCert );
     }
     else if( nReqType == OSSL_CMP_PKIBODY_RR )
     {

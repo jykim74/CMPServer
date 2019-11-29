@@ -22,22 +22,26 @@ OSSL_CMP_SRV_CTX* setupServerCTX()
     X509                *pXCACert = NULL;
     X509                *pXRootCACert = NULL;
     EVP_PKEY            *pECAPriKey = NULL;
-
+ //   X509                *pXSignCert = NULL;
     X509_STORE          *pXStore = NULL;
 
     unsigned char *pPosCACert = g_binCACert.pVal;
     unsigned char *pPosCAPriKey = g_binCAPriKey.pVal;
     unsigned char *pPosRootCACert = g_binRootCert.pVal;
+//    unsigned char *pPosSignCert = g_binSignCert.pVal;
 
     pSrvCTX = OSSL_CMP_SRV_CTX_new();
     if( pSrvCTX == NULL ) return NULL;
 
-    pCTX = OSSL_CMP_SRV_CTX_get0_ctx( pSrvCTX );    
-
+    pCTX = OSSL_CMP_SRV_CTX_get0_ctx( pSrvCTX );
 
     pXRootCACert = d2i_X509( NULL, &pPosRootCACert, g_binRootCert.nLen );
     pXCACert = d2i_X509( NULL, &pPosCACert, g_binCACert.nLen );
     pECAPriKey = d2i_PrivateKey( EVP_PKEY_RSA, NULL, &pPosCAPriKey, g_binCAPriKey.nLen );
+
+    /* 결과 인증서를 테스트로 미리 넣어줌 */
+//    pXSignCert = d2i_X509( NULL, &pPosSignCert, g_binSignCert.nLen );
+//    OSSL_CMP_SRV_CTX_set1_certOut( pSrvCTX, pXSignCert );
 
     pXStore = X509_STORE_new();
     X509_STORE_add_cert( pXStore, pXRootCACert );
@@ -48,7 +52,7 @@ OSSL_CMP_SRV_CTX* setupServerCTX()
     X509_free( pXCACert );
 
     OSSL_CMP_CTX_set0_pkey( pCTX, pECAPriKey );
-    OSSL_CMP_SRV_CTX_set_pollCount( pSrvCTX, 2 );
+//    OSSL_CMP_SRV_CTX_set_pollCount( pSrvCTX, 2 );
     OSSL_CMP_SRV_CTX_set_checkAfterTime( pSrvCTX, 1 );
 
     int nStatus = 0;

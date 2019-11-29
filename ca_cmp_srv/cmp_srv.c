@@ -113,10 +113,16 @@ OSSL_CMP_MSG* makeReq( OSSL_CMP_CTX *pCTX, int nType )
     }
     else if( nType == OSSL_CMP_PKIBODY_GENM )
     {
-//        OSSL_CMP_CTX_set1_referenceValue( pCTX, binRef.pVal, binRef.nLen );
-//        OSSL_CMP_CTX_set1_secretValue( pCTX, binSecret.pVal, binSecret.nLen );
-        OSSL_CMP_CTX_set1_clCert( pCTX, pXSignCert );
-        OSSL_CMP_CTX_set1_pkey( pCTX, pESignPri );
+        BIN binRef = {0,0};
+        BIN binSecret = {0,0};
+
+        JS_BIN_set( &binRef, (unsigned char *)"0123456789", 10 );
+        JS_BIN_set( &binSecret, (unsigned char *)"0123456789ABCDEF", 16 );
+
+        OSSL_CMP_CTX_set1_referenceValue( pCTX, binRef.pVal, binRef.nLen );
+        OSSL_CMP_CTX_set1_secretValue( pCTX, binSecret.pVal, binSecret.nLen );
+//        OSSL_CMP_CTX_set1_clCert( pCTX, pXSignCert );
+//        OSSL_CMP_CTX_set1_pkey( pCTX, pESignPri );
     }
     else if( nType == OSSL_CMP_PKIBODY_CERTCONF )
     {
@@ -171,9 +177,9 @@ int CMP_TestService( JThreadInfo *pThInfo )
 //    int     nType = OSSL_CMP_PKIBODY_IR;
 //    int     nType = OSSL_CMP_PKIBODY_CR;
 //    int     nType = OSSL_CMP_PKIBODY_RR;
-//    int     nType = OSSL_CMP_PKIBODY_KUR;
+    int     nType = OSSL_CMP_PKIBODY_KUR;
 //    int     nType = OSSL_CMP_PKIBODY_GENM;
-    int     nType = OSSL_CMP_PKIBODY_CERTCONF;
+//    int     nType = OSSL_CMP_PKIBODY_CERTCONF;
 
     BIN     binRsp = {0,0};
     char    *pHex = NULL;
@@ -184,6 +190,7 @@ int CMP_TestService( JThreadInfo *pThInfo )
     OSSL_CMP_CTX *pCliCTX = OSSL_CMP_CTX_new();
     OSSL_CMP_SRV_CTX *pSrvCTX = setupServerCTX();
     OSSL_CMP_CTX *pCTX = OSSL_CMP_SRV_CTX_get0_ctx( pSrvCTX );
+    STACK_OF(X509) *pXCerts = NULL;
 
     int     nOutLen = 0;
     unsigned char   *pOut = NULL;
@@ -198,8 +205,9 @@ int CMP_TestService( JThreadInfo *pThInfo )
     }
 
     int nReqType = OSSL_CMP_MSG_get_bodytype( pReqMsg );
+    pXCerts = sk_X509_new_null();
 
-    if( nReqType == OSSL_CMP_PKIBODY_IR || nReqType == OSSL_CMP_PKIBODY_CR )
+    if( nReqType == OSSL_CMP_PKIBODY_IR || nReqType == OSSL_CMP_PKIBODY_CR || nReqType == OSSL_CMP_PKIBODY_GENM )
     {
         BIN binSecret = {0,0};
 
@@ -212,8 +220,8 @@ int CMP_TestService( JThreadInfo *pThInfo )
         X509 *pXSignCert = NULL;
 
         pXSignCert = d2i_X509( NULL, &pPosSignCert, g_binSignCert.nLen );
-
-        OSSL_CMP_CTX_set1_untrusted_certs( pCTX, pXSignCert );
+        sk_X509_push( pXCerts, pXSignCert );
+        OSSL_CMP_CTX_set1_untrusted_certs( pCTX, pXCerts );
     }
     else if( nReqType == OSSL_CMP_PKIBODY_RR )
     {
@@ -222,7 +230,8 @@ int CMP_TestService( JThreadInfo *pThInfo )
 
         pXSignCert = d2i_X509( NULL, &pPosSignCert, g_binSignCert.nLen );
 
-        OSSL_CMP_CTX_set1_untrusted_certs( pCTX, pXSignCert );
+        sk_X509_push( pXCerts, pXSignCert );
+        OSSL_CMP_CTX_set1_untrusted_certs( pCTX, pXCerts );
         OSSL_CMP_SRV_CTX_set1_certOut( pSrvCTX, pXSignCert );
     }
     else if( nReqType == OSSL_CMP_PKIBODY_CERTCONF )
@@ -230,8 +239,9 @@ int CMP_TestService( JThreadInfo *pThInfo )
         unsigned char *pPosSignCert = g_binSignCert.pVal;
         X509 *pXSignCert = NULL;
 
+        sk_X509_push( pXCerts, pXSignCert );
         pXSignCert = d2i_X509( NULL, &pPosSignCert, g_binSignCert.nLen );
-        OSSL_CMP_SRV_CTX_set1_certOut( pSrvCTX, pXSignCert );
+        OSSL_CMP_SRV_CTX_set1_certOut( pSrvCTX, pXCerts );
     }
 
     ret = OSSL_CMP_CTX_set_transfer_cb_arg( pCTX, pSrvCTX );
@@ -257,6 +267,7 @@ int CMP_TestService( JThreadInfo *pThInfo )
 
     return 0;
 }
+
 
 int CMP_Service( JThreadInfo *pThInfo )
 {
@@ -334,7 +345,7 @@ int main( int argc, char *argv[] )
 {
     Init();
 
-//    CMP_TestService( NULL );
+//    return CMP_TestService( NULL );
 
 
     JS_THD_logInit( "./log", "cmp", 2 );

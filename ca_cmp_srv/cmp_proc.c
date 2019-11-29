@@ -25,6 +25,10 @@ int procCMP( const BIN *pReq, BIN *pRsp )
     int     nOutLen = 0;
     unsigned char   *pOut = NULL;
     unsigned char   *pPosReq = pReq->pVal;
+    STACK_OF(X509)  *pXCerts = NULL;
+    X509            *pXSignCert = NULL;
+
+    pXCerts = sk_X509_new_null();
 
     pReqMsg = d2i_OSSL_CMP_MSG( NULL, &pPosReq, pReq->nLen );
     if( pReqMsg == NULL )
@@ -36,7 +40,7 @@ int procCMP( const BIN *pReq, BIN *pRsp )
 
     int nReqType = OSSL_CMP_MSG_get_bodytype( pReqMsg );
 
-    if( nReqType == OSSL_CMP_PKIBODY_IR || nReqType == OSSL_CMP_PKIBODY_CR )
+    if( nReqType == OSSL_CMP_PKIBODY_IR || nReqType == OSSL_CMP_PKIBODY_CR || nReqType == OSSL_CMP_PKIBODY_GENM )
     {
         BIN binSecret = {0,0};
 
@@ -46,26 +50,24 @@ int procCMP( const BIN *pReq, BIN *pRsp )
     else if( nReqType == OSSL_CMP_PKIBODY_KUR )
     {
         unsigned char *pPosSignCert = g_binSignCert.pVal;
-        X509 *pXSignCert = NULL;
 
         pXSignCert = d2i_X509( NULL, &pPosSignCert, g_binSignCert.nLen );
 
-        OSSL_CMP_CTX_set1_untrusted_certs( pCTX, pXSignCert );
+        sk_X509_push( pXCerts, pXSignCert );
+        OSSL_CMP_CTX_set1_untrusted_certs( pCTX, pXCerts );
     }
     else if( nReqType == OSSL_CMP_PKIBODY_RR )
     {
         unsigned char *pPosSignCert = g_binSignCert.pVal;
-        X509 *pXSignCert = NULL;
 
         pXSignCert = d2i_X509( NULL, &pPosSignCert, g_binSignCert.nLen );
-
-        OSSL_CMP_CTX_set1_untrusted_certs( pCTX, pXSignCert );
+        sk_X509_push( pXCerts, pXSignCert );
+        OSSL_CMP_CTX_set1_untrusted_certs( pCTX, pXCerts );
         OSSL_CMP_SRV_CTX_set1_certOut( pSrvCTX, pXSignCert );
     }
     else if( nReqType == OSSL_CMP_PKIBODY_CERTCONF )
     {
         unsigned char *pPosSignCert = g_binSignCert.pVal;
-        X509 *pXSignCert = NULL;
 
         pXSignCert = d2i_X509( NULL, &pPosSignCert, g_binSignCert.nLen );
         OSSL_CMP_SRV_CTX_set1_certOut( pSrvCTX, pXSignCert );
@@ -97,6 +99,8 @@ end :
     if( pHex ) JS_free( pHex );
     if( pOut ) OPENSSL_free( pOut );
     if( pSrvCTX ) OSSL_CMP_SRV_CTX_free( pSrvCTX );
+//    if( pXSignCert ) X509_free( pXSignCert );
 
     return ret;
 }
+

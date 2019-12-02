@@ -11,6 +11,8 @@ extern BIN     g_binCAPriKey;
 extern BIN     g_binSignCert;
 extern BIN     g_binSignPri;
 
+static int     s_nPrevType = -1;
+
 int procCMP( const BIN *pReq, BIN *pRsp )
 {
     int ret = 0;
@@ -79,8 +81,20 @@ int procCMP( const BIN *pReq, BIN *pRsp )
     else if( nReqType == OSSL_CMP_PKIBODY_CERTCONF )
     {
         unsigned char *pPosSignCert = g_binSignCert.pVal;
-
         pXSignCert = d2i_X509( NULL, &pPosSignCert, g_binSignCert.nLen );
+
+        if( s_nPrevType == OSSL_CMP_PKIBODY_KUR )
+        {
+            sk_X509_push( pXCerts, pXSignCert );
+            OSSL_CMP_CTX_set1_untrusted_certs( pCTX, pXCerts );
+        }
+        else
+        {
+            BIN binSecret = {0,0};
+            JS_BIN_set( &binSecret, (unsigned char *)"0123456789ABCDEF", 16 );
+            OSSL_CMP_CTX_set1_secretValue( pCTX, binSecret.pVal, binSecret.nLen );
+        }
+
         OSSL_CMP_SRV_CTX_set1_certOut( pSrvCTX, pXSignCert );
     }
 
@@ -95,6 +109,8 @@ int procCMP( const BIN *pReq, BIN *pRsp )
         ret = -1;
         goto end;
     }
+
+    s_nPrevType = nReqType;
 
     nOutLen = i2d_OSSL_CMP_MSG( pRspMsg, &pOut );
     if( nOutLen > 0 )

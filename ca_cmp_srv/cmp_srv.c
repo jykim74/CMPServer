@@ -4,6 +4,7 @@
 
 #include "js_pki.h"
 #include "js_http.h"
+#include "js_db.h"
 
 #include "js_process.h"
 #include "cmp_srv.h"
@@ -14,6 +15,8 @@ BIN     g_binCAPriKey = {0,0};
 
 BIN     g_binSignCert = {0,0};
 BIN     g_binSignPri = {0,0};
+
+const char* g_dbPath = "/Users/jykim/work/CAMan/ca.db";
 
 OSSL_CMP_SRV_CTX* setupServerCTX()
 {
@@ -281,8 +284,16 @@ int CMP_Service( JThreadInfo *pThInfo )
     BIN     binRsp = {0,0};
 
     char    *pMethInfo = NULL;
-    JSNameValList   *pHeaderList = NULL;
-    JSNameValList   *pRspHeaderList = NULL;
+    JNameValList   *pHeaderList = NULL;
+    JNameValList   *pRspHeaderList = NULL;
+
+    sqlite3* db = JS_DB_open( g_dbPath );
+    if( db == NULL )
+    {
+        fprintf( stderr, "fail to open db file(%s)\n", g_dbPath );
+        ret = -1;
+        goto end;
+    }
 
     ret = JS_HTTP_recvBin( pThInfo->nSockFd, &pMethInfo, &pHeaderList, &binReq );
     if( ret != 0 )
@@ -292,7 +303,7 @@ int CMP_Service( JThreadInfo *pThInfo )
     }
 
     /* read request body */
-    ret = procCMP( &binReq, &binRsp );
+    ret = procCMP( db, &binReq, &binRsp );
     if( ret != 0 )
     {
         fprintf( stderr, "fail to run CMP(%d)\n", ret );
@@ -317,6 +328,7 @@ end:
     if( pRspHeaderList ) JS_UTIL_resetNameValList( &pRspHeaderList );
 
     if( pMethInfo ) JS_free( pMethInfo );
+    if( db ) JS_DB_close( db );
 
     return 0;
 }

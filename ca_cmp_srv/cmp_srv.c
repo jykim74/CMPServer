@@ -16,6 +16,9 @@ BIN     g_binCAPriKey = {0,0};
 BIN     g_binSignCert = {0,0};
 BIN     g_binSignPri = {0,0};
 
+int     g_nCertPolicyNum = 1;
+int     g_nIssuerNum = 1;
+
 const char* g_dbPath = "/Users/jykim/work/CAMan/ca.db";
 
 OSSL_CMP_SRV_CTX* setupServerCTX()

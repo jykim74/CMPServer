@@ -3,6 +3,7 @@
 #include "js_cmp.h"
 #include "js_db.h"
 #include "js_pki_ext.h"
+#include "js_pki_internal.h"
 
 #include "cmp_srv.h"
 
@@ -14,6 +15,8 @@ extern BIN     g_binSignCert;
 extern BIN     g_binSignPri;
 
 static int     s_nPrevType = -1;
+extern int      g_nCertPolicyNum;
+extern int      g_nIssuerNum;
 
 int procGENM( OSSL_CMP_CTX *pCTX, void *pBody )
 {
@@ -23,11 +26,64 @@ int procGENM( OSSL_CMP_CTX *pCTX, void *pBody )
     return 0;
 }
 
-int procIR( OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN *pNewCert )
+int makeCert( JDB_CertPolicy *pDBCertPolicy, JDB_PolicyExtList *pDBPolicyExtList, JCertInfo *pCertInfo, BIN *pCert )
+{
+    int ret = 0;
+    const char *pHash = "SHA256";
+    JExtensionInfoList  *pExtInfoList = NULL;
+    JDB_PolicyExtList   *pDBCurList = NULL;
+    int nExtCnt = JS_DB_countPolicyExtList( pDBPolicyExtList );
+
+    pDBCurList = pDBPolicyExtList;
+
+    while( pDBCurList )
+    {
+        JExtensionInfo sExtInfo;
+        memset( &sExtInfo,0x00, sizeof(sExtInfo));
+
+        if( strcasecmp( pDBCurList->sPolicyExt.pSN, JS_PKI_ExtNameBC ) == 0 )
+        {
+
+        }
+        else if( strcasecmp( pDBCurList->sPolicyExt.pSN, JS_PKI_ExtNameSKI ) == 0 )
+        {
+
+        }
+        else if( strcasecmp( pDBCurList->sPolicyExt.pSN, JS_PKI_ExtNameAKI ) == 0 )
+        {
+
+        }
+
+        JS_PKI_setExtensionFromDB( &sExtInfo, &pDBCurList->sPolicyExt );
+
+        if( pExtInfoList == NULL )
+            JS_PKI_createExtensionInfoList( &sExtInfo, &pExtInfoList );
+        else
+            JS_PKI_appendExtensionInfoList( pExtInfoList, &sExtInfo );
+
+        pDBCurList = pDBCurList->pNext;
+    }
+
+    ret = JS_PKI_makeCertificate( 0, pCertInfo, pExtInfoList, pHash, &g_binCAPriKey, &g_binCACert, pCert );
+
+
+    if( pExtInfoList ) JS_PKI_resetExtensionInfoList( &pExtInfoList );
+
+    return 0;
+}
+
+int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN *pNewCert )
 {
     int ret = 0;
     OSSL_CRMF_MSGS  *pMsgs = (OSSL_CRMF_MSGS *)pBody;
     const char *pHash = "SHA1";
+
+    JDB_CertPolicy sDBCertPolicy;
+    JDB_PolicyExtList *pDBPolicyExtList = NULL;
+
+    memset( &sDBCertPolicy, 0x00, sizeof(sDBCertPolicy));
+    JS_DB_getCertPolicy( db, g_nCertPolicyNum, &sDBCertPolicy );
+    JS_DB_getCertPolicyExtList( db, sDBCertPolicy.nNum, &pDBPolicyExtList );
 
 
     int nNum  = sk_OSSL_CRMF_MSG_num( pMsgs );
@@ -37,35 +93,113 @@ int procIR( OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN *pNewCert )
         unsigned char *pOut = NULL;
         int nOutLen = 0;
         JCertInfo       sCertInfo;
-        JExtensionInfoList  *pExtInfoList = NULL;
+        JCertInfo       sNewCertInfo;
+        JDB_Cert        sDBNewCert;
+
+        int nKeyType = -1;
+        char sSerial[128];
+
+        long uNotBefore = -1;
+        long uNotAfter = -1;
+        char sSubjectName[1024];
+        char *pPubKey = NULL;
+        char *pHexCert = NULL;
+        char *pKeyHash = NULL;
+        BIN binHash = {0,0};
 
         memset( &sCertInfo, 0x00, sizeof(sCertInfo));
+        memset( &sNewCertInfo, 0x00, sizeof(sNewCertInfo));
+        memset( &sDBNewCert, 0x00, sizeof(sDBNewCert));
 
         OSSL_CRMF_MSG *pMsg = sk_OSSL_CRMF_MSG_value( pMsgs, i );
         OSSL_CRMF_CERTTEMPLATE *pTmpl = OSSL_CRMF_MSG_get0_tmpl( pMsg );
-        X509_PUBKEY *pPubKey = OSSL_CRMF_CERTTEMPLATE_get0_publicKey( pTmpl );
+        X509_PUBKEY *pXPubKey = OSSL_CRMF_CERTTEMPLATE_get0_publicKey( pTmpl );
 
-        nOutLen = i2d_X509_PUBKEY( pPubKey, &pOut );
+        nOutLen = i2d_X509_PUBKEY( pXPubKey, &pOut );
         JS_BIN_set( &binPub, pOut, nOutLen );
 
-        ret = JS_PKI_makeCertificate( 0, &sCertInfo, pExtInfoList, pHash, &g_binCAPriKey, &g_binCACert, pNewCert );
+        nKeyType = JS_PKI_getPubKeyType( &binPub );
+        JS_BIN_encodeHex( &binPub, &pPubKey );
+        JS_PKI_genHash( "SHA1", &binPub, &binHash );
+        JS_BIN_encodeHex( &binHash, &pKeyHash );
+
+        int nSeq = JS_DB_getSeq( db, "TB_CERT" );
+        sprintf( sSerial, "%d", nSeq );
+
+        sprintf( sSubjectName, "CN=%s,C=kr", pDBUser->pName );
+        time_t now_t = time(NULL);
+
+        if( sDBCertPolicy.nNotBefore <= 0 )
+        {
+            uNotBefore = 0;
+            uNotAfter = sDBCertPolicy.nNotAfter * 60 * 60 * 24;
+            uNotBefore = 0;
+        }
+        else
+        {
+            uNotBefore = sDBCertPolicy.nNotBefore - now_t;
+            uNotAfter = sDBCertPolicy.nNotAfter - now_t;
+        }
+
+        JS_PKI_setCertInfo( &sCertInfo,
+                                nKeyType,
+                                sDBCertPolicy.nVersion,
+                                sSerial,
+                                NULL,
+                                NULL,
+                                sSubjectName,
+                                uNotBefore,
+                                uNotAfter,
+                                pPubKey,
+                                NULL,
+                                NULL );
+
+
+        makeCert( &sDBCertPolicy, pDBPolicyExtList, &sCertInfo, pNewCert );
+        JS_BIN_encodeHex( pNewCert, &pHexCert );
+
+        JS_PKI_getCertInfo( pNewCert, &sNewCertInfo, NULL );
+        JS_DB_setCert( &sDBNewCert,
+                       -1,
+                       -1,
+                       sNewCertInfo.pSignAlgorithm,
+                       pHexCert,
+                       0,
+                       0,
+                       g_nIssuerNum,
+                       sNewCertInfo.pSubjectName,
+                       0,
+                       sNewCertInfo.pSerial,
+                       sNewCertInfo.pDNHash,
+                       pKeyHash );
+
+        JS_DB_addCert( db, &sDBNewCert );
 
         JS_BIN_reset( &binPub );
         JS_PKI_resetCertInfo( &sCertInfo );
-        if( pExtInfoList ) JS_PKI_resetExtensionInfoList( &pExtInfoList );
+        JS_PKI_resetCertInfo( &sNewCertInfo);
+        JS_DB_resetCert( &sDBNewCert);
+        if( pPubKey ) JS_free( pPubKey );
+        if( pHexCert ) JS_free( pHexCert );
+        if( pKeyHash ) JS_free( pKeyHash );
+        JS_BIN_reset( &binHash );
+
         break;
     }
+
+    JS_DB_resetCertPolicy( &sDBCertPolicy );
+    if( pDBPolicyExtList ) JS_DB_resetPolicyExtList( &pDBPolicyExtList );
 
     return ret;
 }
 
-int procRR( OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody )
+int procRR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody )
 {
     OSSL_CMP_REVREPCONTENT *pRevRepContents = (OSSL_CMP_REVREPCONTENT *)pBody;
     return 0;
 }
 
-int procKUR( OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BIN *pNewCert )
+int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BIN *pNewCert )
 {
     OSSL_CRMF_MSGS  *pMsgs = (OSSL_CRMF_MSGS *)pBody;
     int nNum  = sk_OSSL_CRMF_MSG_num( pMsgs );
@@ -79,7 +213,7 @@ int procKUR( OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BIN *pNewCert )
     return 0;
 }
 
-int procCertConf( OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, JDB_Cert *pDBCert, void *pBody )
+int procCertConf( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, JDB_Cert *pDBCert, void *pBody )
 {
     STACK_OF(OSSL_CMP_CERTSTATUS) *pCertStatus = pBody;
 
@@ -175,7 +309,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
         BIN binNewCert = {0,0};
         X509 *pXNewCert = NULL;
         const unsigned char *pPosNewCert = NULL;
-        procIR( pCTX, pBody, &sDBUser, &binNewCert );
+        procIR( db, pCTX, pBody, &sDBUser, &binNewCert );
 
         pPosNewCert = binNewCert.pVal;
         pXNewCert = d2i_X509( NULL, &pPosNewCert, binNewCert.nLen );
@@ -190,7 +324,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
         const unsigned char *pPosNewCert = NULL;
 
         pPosNewCert = binNewCert.pVal;
-        procKUR( pCTX, &sDBCert, pBody, &binNewCert );
+        procKUR( db, pCTX, &sDBCert, pBody, &binNewCert );
         pXNewCert = d2i_X509( NULL, &pPosNewCert, binNewCert.nLen );
         OSSL_CMP_SRV_CTX_set1_certOut( pSrvCTX, pXNewCert );
 
@@ -199,7 +333,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     }
     else if( nReqType == OSSL_CMP_PKIBODY_RR )
     {
-        procRR( pCTX, &sDBCert, pBody );
+        procRR( db, pCTX, &sDBCert, pBody );
         OSSL_CMP_SRV_CTX_set1_certOut( pSrvCTX, pXSignCert );
     }
     else if( nReqType == OSSL_CMP_PKIBODY_GENM )
@@ -208,7 +342,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     }
     else if( nReqType == OSSL_CMP_PKIBODY_CERTCONF )
     {
-        procCertConf( pCTX, &sDBUser, &sDBCert, pBody );
+        procCertConf( db, pCTX, &sDBUser, &sDBCert, pBody );
         OSSL_CMP_SRV_CTX_set1_certOut( pSrvCTX, pXSignCert );
     }
 

@@ -282,6 +282,8 @@ int CMP_TestService( JThreadInfo *pThInfo )
 int CMP_Service( JThreadInfo *pThInfo )
 {
     int ret = 0;
+    int nType = -1;
+    char *pPath = NULL;
 
     BIN     binReq = {0,0};
     BIN     binRsp = {0,0};
@@ -305,12 +307,21 @@ int CMP_Service( JThreadInfo *pThInfo )
         goto end;
     }
 
-    /* read request body */
-    ret = procCMP( db, &binReq, &binRsp );
-    if( ret != 0 )
+    JS_HTTP_getMethodPath( pMethInfo, &nType, &pPath );
+
+    if( strcasecmp( pPath, "PING") == 0 )
     {
-        fprintf( stderr, "fail to run CMP(%d)\n", ret );
-        goto end;
+
+    }
+    else
+    {
+        /* read request body */
+        ret = procCMP( db, &binReq, &binRsp );
+        if( ret != 0 )
+        {
+            fprintf( stderr, "fail to run CMP(%d)\n", ret );
+            goto end;
+        }
     }
 
     JS_UTIL_createNameValList2("accept", "application/json", &pRspHeaderList);
@@ -332,6 +343,7 @@ end:
 
     if( pMethInfo ) JS_free( pMethInfo );
     if( db ) JS_DB_close( db );
+    if( pPath ) JS_free( pPath );
 
     return 0;
 }

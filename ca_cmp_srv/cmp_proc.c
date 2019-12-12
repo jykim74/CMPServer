@@ -264,14 +264,127 @@ int procRR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody )
 
 int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BIN *pNewCert )
 {
+    JDB_Revoked sDBRevoked;
     OSSL_CRMF_MSGS  *pMsgs = (OSSL_CRMF_MSGS *)pBody;
+
+    const char *pHash = "SHA1";
+
+    JDB_CertPolicy sDBCertPolicy;
+    JDB_PolicyExtList *pDBPolicyExtList = NULL;
+
+    memset( &sDBCertPolicy, 0x00, sizeof(sDBCertPolicy));
+    memset( &sDBRevoked, 0x00, sizeof(sDBRevoked));
+
+    JS_DB_getCertPolicy( db, g_nCertPolicyNum, &sDBCertPolicy );
+    JS_DB_getCertPolicyExtList( db, sDBCertPolicy.nNum, &pDBPolicyExtList );
+
     int nNum  = sk_OSSL_CRMF_MSG_num( pMsgs );
     for( int i = 0; i < nNum; i++ )
     {
+        BIN binPub = {0,0};
+        unsigned char *pOut = NULL;
+        int nOutLen = 0;
+        JCertInfo       sCertInfo;
+        JCertInfo       sNewCertInfo;
+        JDB_Cert        sDBNewCert;
+
+        int nKeyType = -1;
+        char sSerial[128];
+
+        long uNotBefore = -1;
+        long uNotAfter = -1;
+        char sSubjectName[1024];
+        char *pPubKey = NULL;
+        char *pHexCert = NULL;
+        char *pKeyHash = NULL;
+        BIN binHash = {0,0};
+
+        memset( &sCertInfo, 0x00, sizeof(sCertInfo));
+        memset( &sNewCertInfo, 0x00, sizeof(sNewCertInfo));
+        memset( &sDBNewCert, 0x00, sizeof(sDBNewCert));
+
         OSSL_CRMF_MSG *pMsg = sk_OSSL_CRMF_MSG_value( pMsgs, i );
         OSSL_CRMF_CERTTEMPLATE *pTmpl = OSSL_CRMF_MSG_get0_tmpl( pMsg );
-        X509_PUBKEY *pPubKey = OSSL_CRMF_CERTTEMPLATE_get0_publicKey( pTmpl );
+        X509_PUBKEY *pXPubKey = OSSL_CRMF_CERTTEMPLATE_get0_publicKey( pTmpl );
+
+        nOutLen = i2d_X509_PUBKEY( pXPubKey, &pOut );
+        JS_BIN_set( &binPub, pOut, nOutLen );
+
+        nKeyType = JS_PKI_getPubKeyType( &binPub );
+        JS_BIN_encodeHex( &binPub, &pPubKey );
+        JS_PKI_genHash( "SHA1", &binPub, &binHash );
+        JS_BIN_encodeHex( &binHash, &pKeyHash );
+
+        int nSeq = JS_DB_getSeq( db, "TB_CERT" );
+        sprintf( sSerial, "%d", nSeq );
+
+        sprintf( sSubjectName, "CN=%s,C=kr", pDBCert->pSubjectDN );
+        time_t now_t = time(NULL);
+
+        if( sDBCertPolicy.nNotBefore <= 0 )
+        {
+            uNotBefore = 0;
+            uNotAfter = sDBCertPolicy.nNotAfter * 60 * 60 * 24;
+            uNotBefore = 0;
+        }
+        else
+        {
+            uNotBefore = sDBCertPolicy.nNotBefore - now_t;
+            uNotAfter = sDBCertPolicy.nNotAfter - now_t;
+        }
+
+        JS_PKI_setCertInfo( &sCertInfo,
+                                nKeyType,
+                                sDBCertPolicy.nVersion,
+                                sSerial,
+                                NULL,
+                                NULL,
+                                sSubjectName,
+                                uNotBefore,
+                                uNotAfter,
+                                pPubKey,
+                                NULL,
+                                NULL );
+
+
+        makeCert( &sDBCertPolicy, pDBPolicyExtList, &sCertInfo, pNewCert );
+        JS_BIN_encodeHex( pNewCert, &pHexCert );
+
+        JS_PKI_getCertInfo( pNewCert, &sNewCertInfo, NULL );
+        JS_DB_setCert( &sDBNewCert,
+                       -1,
+                       -1,
+                       sNewCertInfo.pSignAlgorithm,
+                       pHexCert,
+                       0,
+                       0,
+                       g_nIssuerNum,
+                       sNewCertInfo.pSubjectName,
+                       0,
+                       sNewCertInfo.pSerial,
+                       sNewCertInfo.pDNHash,
+                       pKeyHash );
+
+        JS_DB_addCert( db, &sDBNewCert );
+
+        JS_BIN_reset( &binPub );
+        JS_PKI_resetCertInfo( &sCertInfo );
+        JS_PKI_resetCertInfo( &sNewCertInfo);
+        JS_DB_resetCert( &sDBNewCert);
+        if( pPubKey ) JS_free( pPubKey );
+        if( pHexCert ) JS_free( pHexCert );
+        if( pKeyHash ) JS_free( pKeyHash );
+        JS_BIN_reset( &binHash );
+
+        break;
     }
+
+    JS_DB_setRevoked( &sDBRevoked, -1, pDBCert->nNum, g_nIssuerNum, pDBCert->pSerial, time(NULL), 1 );
+
+    JS_DB_addRevoked( db, &sDBRevoked );
+    JS_DB_changeCertStatus( db, pDBCert->nNum, 2 );
+
+    JS_DB_resetRevoked( &sDBRevoked );
 
     return 0;
 }

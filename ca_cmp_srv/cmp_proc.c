@@ -4,8 +4,11 @@
 #include "js_db.h"
 #include "js_pki_ext.h"
 #include "js_pki_internal.h"
+#include "js_pki_x509.h"
+#include "js_pki_tools.h"
 
 #include "cmp_srv.h"
+
 
 extern BIN     g_binRootCert;
 extern BIN     g_binCACert;
@@ -14,9 +17,10 @@ extern BIN     g_binCAPriKey;
 extern BIN     g_binSignCert;
 extern BIN     g_binSignPri;
 
-static int     s_nPrevType = -1;
 extern int      g_nCertPolicyNum;
 extern int      g_nIssuerNum;
+
+static int     s_nPrevType = -1;
 
 int procGENM( OSSL_CMP_CTX *pCTX, void *pBody )
 {
@@ -39,19 +43,50 @@ int makeCert( JDB_CertPolicy *pDBCertPolicy, JDB_PolicyExtList *pDBPolicyExtList
     while( pDBCurList )
     {
         JExtensionInfo sExtInfo;
+
         memset( &sExtInfo,0x00, sizeof(sExtInfo));
 
-        if( strcasecmp( pDBCurList->sPolicyExt.pSN, JS_PKI_ExtNameBC ) == 0 )
-        {
 
-        }
-        else if( strcasecmp( pDBCurList->sPolicyExt.pSN, JS_PKI_ExtNameSKI ) == 0 )
+        if( strcasecmp( pDBCurList->sPolicyExt.pSN, JS_PKI_ExtNameSKI ) == 0 )
         {
+            BIN binPub = {0,0};
+            char    sHexID[128];
 
+            memset( sHexID, 0x00, sizeof(sHexID));
+            JS_BIN_decodeHex(pCertInfo->pPublicKey, &binPub);
+            JS_PKI_getKeyIdentifier( &binPub, sHexID );
+
+            if( pDBCurList->sPolicyExt.pValue )
+            {
+                JS_free( pDBCurList->sPolicyExt.pValue );
+                pDBCurList->sPolicyExt.pValue = NULL;
+            }
+
+            pDBCurList->sPolicyExt.pValue = JS_strdup( sHexID );
+            JS_BIN_reset( &binPub );
         }
         else if( strcasecmp( pDBCurList->sPolicyExt.pSN, JS_PKI_ExtNameAKI ) == 0 )
         {
+            char    sHexID[128];
+            char    sHexSerial[128];
+            char    sHexIssuer[1024];
 
+            char    sBuf[2048];
+
+            memset( sHexID, 0x00, sizeof(sHexID));
+            memset( sHexSerial, 0x00, sizeof(sHexSerial));
+            memset( sHexIssuer, 0x00, sizeof(sHexIssuer));
+            memset( sBuf, 0x00, sizeof(sBuf));
+
+            JS_PKI_getAuthorityKeyIdentifier( &g_binCACert, sHexID, sHexSerial, sHexIssuer );
+            sprintf( sBuf, "KEYID$%s#ISSUER$%s#SERIAL$%s", sHexID, sHexSerial, sHexIssuer );
+            if( pDBCurList->sPolicyExt.pValue )
+            {
+                JS_free( pDBCurList->sPolicyExt.pValue );
+                pDBCurList->sPolicyExt.pValue = NULL;
+            }
+
+            pDBCurList->sPolicyExt.pValue = JS_strdup( sBuf );
         }
 
         JS_PKI_setExtensionFromDB( &sExtInfo, &pDBCurList->sPolicyExt );
@@ -195,7 +230,35 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
 
 int procRR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody )
 {
-    OSSL_CMP_REVREPCONTENT *pRevRepContents = (OSSL_CMP_REVREPCONTENT *)pBody;
+    OSSL_CRMF_CERTID    *pCertID = NULL;
+    OSSL_CRMF_CERTTEMPLATE  *pTmpl = NULL;
+    OSSL_CMP_REVDETAILS *pDetails = NULL;
+    X509_EXTENSIONS     *pXExts = NULL;
+    X509_EXTENSION      *pXReason = NULL;
+    STACK_OF(OSSL_CMP_REVDETAILS) *pRevDetails = pBody;
+
+    BIN binData = {0,0};
+    int nReason = 0;
+    JDB_Revoked sDBRevoked;
+
+    memset( &sDBRevoked, 0x00, sizeof(sDBRevoked));
+
+    pDetails = sk_OSSL_CMP_REVDETAILS_value( pRevDetails, 0 );
+    pTmpl = OSSL_CMP_REVDETAILS_get0_certDetails( pDetails );
+    pXExts = OSSL_CMP_REVDETAILS_get0_crlEntryDetails( pDetails );
+
+    pXReason = sk_X509_EXTENSION_value( pXExts, 0 );
+    ASN1_OCTET_STRING *pAOctet = X509_EXTENSION_get_data( pXReason );
+    JS_BIN_set( &binData, pAOctet->data, pAOctet->length );
+    JS_PKI_getCRLReasonValue( &binData, &nReason );
+
+    JS_DB_setRevoked( &sDBRevoked, -1, pDBCert->nNum, g_nIssuerNum, pDBCert->pSerial, time(NULL), nReason );
+
+    JS_DB_addRevoked( db, &sDBRevoked );
+    JS_DB_changeCertStatus( db, pDBCert->nNum, 2 );
+
+    JS_DB_resetRevoked( &sDBRevoked );
+    JS_BIN_reset( &binData );
     return 0;
 }
 

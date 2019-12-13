@@ -313,7 +313,7 @@ int CMP_Service( JThreadInfo *pThInfo )
     {
 
     }
-    else
+    else if( strcasecmp( pPath, "CMP" ) == 0 )
     {
         /* read request body */
         ret = procCMP( db, &binReq, &binRsp );

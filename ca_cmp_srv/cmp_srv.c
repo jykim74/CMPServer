@@ -309,11 +309,11 @@ int CMP_Service( JThreadInfo *pThInfo )
 
     JS_HTTP_getMethodPath( pMethInfo, &nType, &pPath );
 
-    if( strcasecmp( pPath, "PING") == 0 )
+    if( strcasecmp( pPath, "/PING") == 0 )
     {
 
     }
-    else if( strcasecmp( pPath, "CMP" ) == 0 )
+    else if( strcasecmp( pPath, "/CMP" ) == 0 )
     {
         /* read request body */
         ret = procCMP( db, &binReq, &binRsp );
@@ -324,8 +324,8 @@ int CMP_Service( JThreadInfo *pThInfo )
         }
     }
 
-    JS_UTIL_createNameValList2("accept", "application/json", &pRspHeaderList);
-    JS_UTIL_appendNameValList2( pRspHeaderList, "content-type", "application/json");
+    JS_UTIL_createNameValList2("accept", "application/cmp-response", &pRspHeaderList);
+    JS_UTIL_appendNameValList2( pRspHeaderList, "content-type", "application/cmp-response");
 
     ret = JS_HTTP_sendBin( pThInfo->nSockFd, JS_HTTP_OK, pRspHeaderList, &binRsp );
     if( ret != 0 )

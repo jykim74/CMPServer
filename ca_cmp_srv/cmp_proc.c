@@ -26,6 +26,20 @@ int procGENM( OSSL_CMP_CTX *pCTX, void *pBody )
 {
     STACK_OF(OSSL_CMP_ITAV) *pITAVs = pBody;
 
+    int nCnt = sk_OSSL_CMP_ITAV_num( pITAVs );
+
+    for( int i=0; i < nCnt; i++ )
+    {
+        unsigned char sBuf[1024];
+
+        memset( sBuf, 0x00, sizeof(sBuf));
+
+        OSSL_CMP_ITAV   *pITAV = sk_OSSL_CMP_ITAV_value(  pITAVs, i );
+        ASN1_OBJECT *pAObj = OSSL_CMP_ITAV_get0_type( pITAV );
+        ASN1_TYPE *pAType = OSSL_CMP_ITAV_get0_value( pITAV );
+        ASN1_TYPE_get_octetstring( pAType, sBuf, 1024 );
+    }
+
 
     return 0;
 }
@@ -417,7 +431,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     X509            *pXSignCert = NULL;
 
     BIN             binKID = {0,0};
-    char            *pHexKID = NULL;
+    char            *pKID = NULL;
     JDB_Cert        sDBCert;
     JDB_User        sDBUser;
 
@@ -434,6 +448,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
         goto end;
     }
 
+
     int nReqType = OSSL_CMP_MSG_get_bodytype( pReqMsg );
     pHeader = OSSL_CMP_MSG_get0_header( pReqMsg );
     void *pBody = OSSL_CMP_MSG_get0_body( pReqMsg );
@@ -443,14 +458,22 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     ASN1_OCTET_STRING *pATransID = OSSL_CMP_HDR_get0_transactionID( pHeader );
     ASN1_OCTET_STRING *pASenderKID = OSSL_CMP_HDR_get0_senderKID( pHeader );
 
-    JS_BIN_set( &binKID, pASenderKID->data, pASenderKID->length );
-    JS_BIN_encodeHex( &binKID, &pHexKID );
+    /* KID 값은 RefCode 값이거나 클라이언트 인증서의 KeyIdentifier 값이 셋팅 됨 */
+    if( pASenderKID == NULL )
+    {
+        fprintf( stderr, "There is no SendKID value\n" );
+        ret = -1;
+        goto end;
+    }
 
-    ret = JS_DB_getUserByRefCode( db, pHexKID, &sDBUser );
+    JS_BIN_set( &binKID, pASenderKID->data, pASenderKID->length );
+    JS_BIN_string( &binKID, &pKID );
+
+    ret = JS_DB_getUserByRefCode( db, pKID, &sDBUser );
     if( ret >= 0 && strlen( sDBUser.pSecretNum ) > 0 )
     {
         BIN binSecret = {0,0};
-        JS_BIN_decodeHex( sDBUser.pSecretNum, &binSecret );
+        JS_BIN_set( &binSecret, sDBUser.pSecretNum, strlen( sDBUser.pSecretNum) );
         OSSL_CMP_CTX_set1_secretValue( pCTX, binSecret.pVal, binSecret.nLen );
         JS_BIN_reset( &binSecret );
     }
@@ -468,7 +491,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
 
         JS_PKI_getCertInfo( &g_binCACert, &sCACertInfo, NULL );
         JS_DB_getCertByDNHash( db, sCACertInfo.pDNHash, &sDBCACert );
-        JS_DB_getCertBySerial( db, sDBCACert.nNum, pHexKID, &sDBCert );
+        JS_DB_getCertBySerial( db, sDBCACert.nNum, pKID, &sDBCert );
         JS_BIN_decodeHex( sDBCert.pCert, &binCert );
 
         pPosCert = binCert.pVal;
@@ -554,6 +577,8 @@ end :
     if( pOut ) OPENSSL_free( pOut );
     if( pSrvCTX ) OSSL_CMP_SRV_CTX_free( pSrvCTX );
 //    if( pXSignCert ) X509_free( pXSignCert );
+    if( pKID ) JS_free( pKID );
+    JS_BIN_reset( &binKID );
 
     return ret;
 }

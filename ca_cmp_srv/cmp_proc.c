@@ -153,12 +153,13 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
         char sSubjectName[1024];
         char *pPubKey = NULL;
         char *pHexCert = NULL;
-        char *pKeyHash = NULL;
-        BIN binHash = {0,0};
+
+        char    sKeyID[128];
 
         memset( &sCertInfo, 0x00, sizeof(sCertInfo));
         memset( &sNewCertInfo, 0x00, sizeof(sNewCertInfo));
         memset( &sDBNewCert, 0x00, sizeof(sDBNewCert));
+        memset( sKeyID, 0x00, sizeof(sKeyID));
 
         OSSL_CRMF_MSG *pMsg = sk_OSSL_CRMF_MSG_value( pMsgs, i );
         OSSL_CRMF_CERTTEMPLATE *pTmpl = OSSL_CRMF_MSG_get0_tmpl( pMsg );
@@ -167,10 +168,11 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
         nOutLen = i2d_X509_PUBKEY( pXPubKey, &pOut );
         JS_BIN_set( &binPub, pOut, nOutLen );
 
+
         nKeyType = JS_PKI_getPubKeyType( &binPub );
+        JS_PKI_getKeyIdentifier( &binPub, sKeyID );
         JS_BIN_encodeHex( &binPub, &pPubKey );
-        JS_PKI_genHash( "SHA1", &binPub, &binHash );
-        JS_BIN_encodeHex( &binHash, &pKeyHash );
+
 
         int nSeq = JS_DB_getSeq( db, "TB_CERT" );
         sprintf( sSerial, "%d", nSeq );
@@ -221,7 +223,7 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
                        0,
                        sNewCertInfo.pSerial,
                        sNewCertInfo.pDNHash,
-                       pKeyHash );
+                       sKeyID );
 
         JS_DB_addCert( db, &sDBNewCert );
 
@@ -231,8 +233,6 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
         JS_DB_resetCert( &sDBNewCert);
         if( pPubKey ) JS_free( pPubKey );
         if( pHexCert ) JS_free( pHexCert );
-        if( pKeyHash ) JS_free( pKeyHash );
-        JS_BIN_reset( &binHash );
 
         break;
     }
@@ -311,12 +311,12 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
         char sSubjectName[1024];
         char *pPubKey = NULL;
         char *pHexCert = NULL;
-        char *pKeyHash = NULL;
-        BIN binHash = {0,0};
+        char sKeyID[128];
 
         memset( &sCertInfo, 0x00, sizeof(sCertInfo));
         memset( &sNewCertInfo, 0x00, sizeof(sNewCertInfo));
         memset( &sDBNewCert, 0x00, sizeof(sDBNewCert));
+        memset( sKeyID, 0x00, sizeof(sKeyID));
 
         OSSL_CRMF_MSG *pMsg = sk_OSSL_CRMF_MSG_value( pMsgs, i );
         OSSL_CRMF_CERTTEMPLATE *pTmpl = OSSL_CRMF_MSG_get0_tmpl( pMsg );
@@ -327,8 +327,7 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
 
         nKeyType = JS_PKI_getPubKeyType( &binPub );
         JS_BIN_encodeHex( &binPub, &pPubKey );
-        JS_PKI_genHash( "SHA1", &binPub, &binHash );
-        JS_BIN_encodeHex( &binHash, &pKeyHash );
+        JS_PKI_getKeyIdentifier( &binPub, sKeyID );
 
         int nSeq = JS_DB_getSeq( db, "TB_CERT" );
         sprintf( sSerial, "%d", nSeq );
@@ -379,7 +378,7 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
                        0,
                        sNewCertInfo.pSerial,
                        sNewCertInfo.pDNHash,
-                       pKeyHash );
+                       sKeyID );
 
         JS_DB_addCert( db, &sDBNewCert );
 
@@ -389,8 +388,6 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
         JS_DB_resetCert( &sDBNewCert);
         if( pPubKey ) JS_free( pPubKey );
         if( pHexCert ) JS_free( pHexCert );
-        if( pKeyHash ) JS_free( pKeyHash );
-        JS_BIN_reset( &binHash );
 
         break;
     }
@@ -467,7 +464,9 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     }
 
     JS_BIN_set( &binKID, pASenderKID->data, pASenderKID->length );
-    JS_BIN_string( &binKID, &pKID );
+
+    JS_BIN_encodeHex( &binKID, &pKID );
+    fprintf( stderr, "KID : %s\n", pKID );
 
     ret = JS_DB_getUserByRefCode( db, pKID, &sDBUser );
     if( ret >= 0 && strlen( sDBUser.pSecretNum ) > 0 )
@@ -491,13 +490,14 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
 
         JS_PKI_getCertInfo( &g_binCACert, &sCACertInfo, NULL );
         JS_DB_getCertByDNHash( db, sCACertInfo.pDNHash, &sDBCACert );
-        JS_DB_getCertBySerial( db, sDBCACert.nNum, pKID, &sDBCert );
+        JS_DB_getCertByKeyHash( db, pKID, &sDBCert );
         JS_BIN_decodeHex( sDBCert.pCert, &binCert );
 
         pPosCert = binCert.pVal;
         pXSignCert = d2i_X509( NULL, &pPosCert, binCert.nLen );
         sk_X509_push( pXCerts, pXSignCert );
         OSSL_CMP_CTX_set1_untrusted_certs( pCTX, pXCerts );
+        OSSL_CMP_CTX_set1_srvCert( pCTX, pXSignCert );
 
         JS_BIN_reset( &binCert );
         JS_PKI_resetCertInfo( &sCACertInfo );
@@ -540,6 +540,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     else if( nReqType == OSSL_CMP_PKIBODY_GENM )
     {
         procGENM( pCTX, pBody );
+ //       if( pXSignCert ) OSSL_CMP_SRV_CTX_set1_certOut( pSrvCTX, pXSignCert );
     }
     else if( nReqType == OSSL_CMP_PKIBODY_CERTCONF )
     {

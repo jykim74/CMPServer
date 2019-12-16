@@ -55,6 +55,8 @@ OSSL_CMP_SRV_CTX* setupServerCTX()
     OSSL_CMP_CTX_set0_trustedStore( pCTX, pXStore );
 
     OSSL_CMP_CTX_set1_clCert( pCTX, pXCACert );
+//    OSSL_CMP_CTX_set1_srvCert( pCTX, pXCACert );
+
     X509_free( pXCACert );
 
     OSSL_CMP_CTX_set0_pkey( pCTX, pECAPriKey );

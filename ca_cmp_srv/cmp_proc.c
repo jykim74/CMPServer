@@ -20,8 +20,6 @@ extern BIN     g_binSignPri;
 extern int      g_nCertPolicyNum;
 extern int      g_nIssuerNum;
 
-static int     s_nPrevType = -1;
-
 int procGENM( OSSL_CMP_CTX *pCTX, void *pBody )
 {
     STACK_OF(OSSL_CMP_ITAV) *pITAVs = pBody;
@@ -590,9 +588,6 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
         ret = -1;
         goto end;
     }
-
-    s_nPrevType = nReqType;
-
 
     nOutLen = i2d_OSSL_CMP_MSG( pRspMsg, &pOut );
     if( nOutLen > 0 )

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <getopt.h>
 
 #include "openssl/cmp.h"
 
@@ -13,13 +14,22 @@ BIN     g_binRootCert = {0,0};
 BIN     g_binCACert = {0,0};
 BIN     g_binCAPriKey = {0,0};
 
-BIN     g_binSignCert = {0,0};
-BIN     g_binSignPri = {0,0};
-
 int     g_nCertPolicyNum = 1;
 int     g_nIssuerNum = 1;
 
 const char* g_dbPath = "/Users/jykim/work/CAMan/ca.db";
+static char g_sBuildInfo[1024];
+
+int g_nVerbose = 0;
+static char g_sConfigPath[1024];
+
+const char *getBuildInfo()
+{
+    sprintf( g_sBuildInfo, "Version: %s Build Date : %s %s",
+             JS_CMP_SRV_VERSION, __DATE__, __TIME__ );
+
+    return g_sBuildInfo;
+}
 
 OSSL_CMP_SRV_CTX* setupServerCTX()
 {
@@ -153,18 +163,43 @@ int Init()
     JS_BIN_fileRead( pRootCertPath, &g_binRootCert );
     JS_BIN_fileRead( pCACertPath, &g_binCACert );
     JS_BIN_fileRead( pCAPriKeyPath, &g_binCAPriKey );
-    JS_BIN_fileRead( pSignCertPath, &g_binSignCert );
-    JS_BIN_fileRead( pSignPriPath, &g_binSignPri );
 
     return 0;
 }
 
+void printUsage()
+{
+    printf( "JS CA_CMP Server ( %s )\n", getBuildInfo() );
+    printf( "[Options]\n" );
+    printf( "-v         : Verbose on(%d)\n", g_nVerbose );
+    printf( "-c config : set config file(%s)\n", g_sConfigPath );
+    printf( "-h         : Print this message\n" );
+}
+
 int main( int argc, char *argv[] )
 {
+    int     nOpt = 0;
+
+    sprintf( g_sConfigPath, "%s", "ca_cmp.cfg" );
+
+    while(( nOpt = getopt( argc, argv, "c:vh")) != -1 )
+    {
+        switch ( nOpt ) {
+        case 'h' :
+            printUsage();
+            return 0;
+
+       case 'v' :
+            g_nVerbose = 1;
+            break;
+
+        case 'c' :
+            sprintf( g_sConfigPath, "%s", optarg );
+            break;
+        }
+    }
+
     Init();
-
-//    return CMP_TestService( NULL );
-
 
     JS_THD_logInit( "./log", "cmp", 2 );
     JS_THD_registerService( "JS_CMP", NULL, 9000, 4, NULL, CMP_Service );

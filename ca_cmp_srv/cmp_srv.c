@@ -88,6 +88,7 @@ int CMP_Service( JThreadInfo *pThInfo )
     char    *pMethInfo = NULL;
     JNameValList   *pHeaderList = NULL;
     JNameValList   *pRspHeaderList = NULL;
+    JNameValList    *pParamList = NULL;
 
     sqlite3* db = JS_DB_open( g_dbPath );
     if( db == NULL )
@@ -104,7 +105,7 @@ int CMP_Service( JThreadInfo *pThInfo )
         goto end;
     }
 
-    JS_HTTP_getMethodPath( pMethInfo, &nType, &pPath );
+    JS_HTTP_getMethodPath( pMethInfo, &nType, &pPath, &pParamList );
 
     if( strcasecmp( pPath, "/PING") == 0 )
     {
@@ -137,6 +138,7 @@ end:
 
     if( pHeaderList ) JS_UTIL_resetNameValList( &pHeaderList );
     if( pRspHeaderList ) JS_UTIL_resetNameValList( &pRspHeaderList );
+    if( pParamList ) JS_UTIL_resetNameValList( &pParamList );
 
     if( pMethInfo ) JS_free( pMethInfo );
     if( db ) JS_DB_close( db );

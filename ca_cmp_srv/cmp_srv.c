@@ -124,8 +124,9 @@ int CMP_Service( JThreadInfo *pThInfo )
 
     JS_UTIL_createNameValList2("accept", "application/cmp-response", &pRspHeaderList);
     JS_UTIL_appendNameValList2( pRspHeaderList, "content-type", "application/cmp-response");
+    const char *pRspMethod = JS_HTTP_getStatusMsg( JS_HTTP_STATUS_OK );
 
-    ret = JS_HTTP_sendBin( pThInfo->nSockFd, JS_HTTP_OK, pRspHeaderList, &binRsp );
+    ret = JS_HTTP_sendBin( pThInfo->nSockFd, pRspMethod, pRspHeaderList, &binRsp );
     if( ret != 0 )
     {
         fprintf( stderr, "fail to send message(%d)\n", ret );

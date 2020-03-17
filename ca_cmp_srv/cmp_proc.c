@@ -217,7 +217,8 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
                        0,
                        sNewCertInfo.pSerial,
                        sNewCertInfo.pDNHash,
-                       sKeyID );
+                       sKeyID,
+                       "" );
 
         ret = JS_DB_addCert( db, &sDBNewCert );
 
@@ -261,7 +262,7 @@ int procRR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody )
     JS_BIN_set( &binData, pAOctet->data, pAOctet->length );
     JS_PKI_getCRLReasonValue( &binData, &nReason );
 
-    JS_DB_setRevoked( &sDBRevoked, -1, pDBCert->nNum, g_nIssuerNum, pDBCert->pSerial, time(NULL), nReason );
+    JS_DB_setRevoked( &sDBRevoked, -1, pDBCert->nNum, g_nIssuerNum, pDBCert->pSerial, time(NULL), nReason, pDBCert->pCRLDP );
 
     JS_DB_addRevoked( db, &sDBRevoked );
     JS_DB_changeCertStatus( db, pDBCert->nNum, 2 );
@@ -367,7 +368,8 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
                        0,
                        sNewCertInfo.pSerial,
                        sNewCertInfo.pDNHash,
-                       sKeyID );
+                       sKeyID,
+                       "" );
 
         ret = JS_DB_addCert( db, &sDBNewCert );
 
@@ -381,7 +383,7 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
         break;
     }
 
-    JS_DB_setRevoked( &sDBRevoked, -1, pDBCert->nNum, g_nIssuerNum, pDBCert->pSerial, time(NULL), 1 );
+    JS_DB_setRevoked( &sDBRevoked, -1, pDBCert->nNum, g_nIssuerNum, pDBCert->pSerial, time(NULL), 1, pDBCert->pCRLDP );
 
     JS_DB_addRevoked( db, &sDBRevoked );
     JS_DB_changeCertStatus( db, pDBCert->nNum, 2 );

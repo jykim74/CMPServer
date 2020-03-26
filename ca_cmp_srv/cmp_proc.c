@@ -101,7 +101,7 @@ int makeCert( JDB_CertPolicy *pDBCertPolicy, JDB_PolicyExtList *pDBPolicyExtList
             pDBCurList->sPolicyExt.pValue = JS_strdup( sBuf );
         }
 
-        JS_PKI_setExtensionFromDB( &sExtInfo, &pDBCurList->sPolicyExt );
+        JS_PKI_transExtensionFromDBRec( &sExtInfo, &pDBCurList->sPolicyExt );
 
         if( pExtInfoList == NULL )
             JS_PKI_createExtensionInfoList( &sExtInfo, &pExtInfoList );
@@ -197,6 +197,7 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
                                 sSubjectName,
                                 uNotBefore,
                                 uNotAfter,
+                                nKeyType,
                                 pPubKey );
 
 
@@ -206,6 +207,7 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
         JS_PKI_getCertInfo( pNewCert, &sNewCertInfo, NULL );
         JS_DB_setCert( &sDBNewCert,
                        -1,
+                       now_t,
                        -1,
                        pDBUser->nNum,
                        sNewCertInfo.pSignAlgorithm,
@@ -348,6 +350,7 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
                                 sSubjectName,
                                 uNotBefore,
                                 uNotAfter,
+                                nKeyType,
                                 pPubKey );
 
 
@@ -357,6 +360,7 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
         JS_PKI_getCertInfo( pNewCert, &sNewCertInfo, NULL );
         JS_DB_setCert( &sDBNewCert,
                        -1,
+                       now_t,
                        -1,
                        pDBCert->nUserNum,
                        sNewCertInfo.pSignAlgorithm,

@@ -492,7 +492,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     JS_BIN_encodeHex( &binKID, &pKID );
     fprintf( stderr, "KID : %s\n", pKID );
 
-    ret = JS_DB_getUserByRefCode( db, pKID, &sDBUser );
+    ret = JS_DB_getUserByRefNum( db, pKID, &sDBUser );
     if( ret >= 0 && strlen( sDBUser.pAuthCode ) > 0 )
     {
         BIN binSecret = {0,0};

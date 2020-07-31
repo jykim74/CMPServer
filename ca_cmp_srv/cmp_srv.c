@@ -17,7 +17,7 @@ BIN     g_binCAPriKey = {0,0};
 int     g_nCertPolicyNum = 1;
 int     g_nIssuerNum = 1;
 
-const char* g_dbPath = "/Users/jykim/work/CAMan/ca.db";
+const char* g_dbPath = "D:/data/ca.db";
 static char g_sBuildInfo[1024];
 
 int g_nVerbose = 0;
@@ -156,12 +156,9 @@ int CMP_SSL_Service( JThreadInfo *pThInfo )
 
 int Init()
 {
-    const char  *pRootCertPath = "/Users/jykim/work/PKITester/data/root_ca_cert.der";
-    const char  *pCACertPath = "/Users/jykim/work/PKITester/data/ca_cert.der";
-    const char  *pCAPriKeyPath = "/Users/jykim/work/PKITester/data/ca_prikey.der";
-
-    const char *pSignCertPath = "/Users/jykim/work/PKITester/data/user_cert.der";
-    const char *pSignPriPath = "/Users/jykim/work/PKITester/data/user_prikey.der";
+    const char  *pRootCertPath = "D:/certs/root_ca_cert.der";
+    const char  *pCACertPath = "D:/certs/ca_cert.der";
+    const char  *pCAPriKeyPath = "D:/certs/ca_key.der";
 
     JS_BIN_fileRead( pRootCertPath, &g_binRootCert );
     JS_BIN_fileRead( pCACertPath, &g_binCACert );

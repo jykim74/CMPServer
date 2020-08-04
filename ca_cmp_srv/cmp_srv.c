@@ -6,6 +6,7 @@
 #include "js_pki.h"
 #include "js_http.h"
 #include "js_db.h"
+#include "js_cfg.h"
 
 #include "js_process.h"
 #include "cmp_srv.h"
@@ -17,7 +18,9 @@ BIN     g_binCAPriKey = {0,0};
 int     g_nCertPolicyNum = 1;
 int     g_nIssuerNum = 1;
 
-const char* g_dbPath = "D:/data/ca.db";
+JEnvList    *g_pEnvList = NULL;
+
+const char* g_dbPath = NULL;
 static char g_sBuildInfo[1024];
 
 int g_nVerbose = 0;
@@ -156,6 +159,7 @@ int CMP_SSL_Service( JThreadInfo *pThInfo )
 
 int Init()
 {
+    /*
     const char  *pRootCertPath = "D:/certs/root_ca_cert.der";
     const char  *pCACertPath = "D:/certs/ca_cert.der";
     const char  *pCAPriKeyPath = "D:/certs/ca_key.der";
@@ -163,7 +167,71 @@ int Init()
     JS_BIN_fileRead( pRootCertPath, &g_binRootCert );
     JS_BIN_fileRead( pCACertPath, &g_binCACert );
     JS_BIN_fileRead( pCAPriKeyPath, &g_binCAPriKey );
+    */
 
+    int ret = 0;
+    const char *value = NULL;
+
+    ret = JS_CFG_readConfig( g_sConfigPath, &g_pEnvList );
+    if( ret != 0 )
+    {
+        fprintf( stderr, "fail to open config file(%s)\n", g_sConfigPath );
+        exit(0);
+    }
+
+    value = JS_CFG_getValue( g_pEnvList, "ROOTCA_CERT_PATH" );
+    if( value == NULL )
+    {
+        fprintf( stderr, "You have to set 'ROOTCA_CERT_PATH'\n" );
+        exit(0);
+    }
+
+    ret = JS_BIN_fileRead( value, &g_binRootCert );
+    if( ret != 0 )
+    {
+        fprintf( stderr, "fail to open rootca cert(%s)\n", value );
+        exit(0);
+    }
+
+
+    value = JS_CFG_getValue( g_pEnvList, "CA_CERT_PATH" );
+    if( value == NULL )
+    {
+        fprintf( stderr, "You have to set 'CA_CERT_PATH'\n" );
+        exit(0);
+    }
+
+    ret = JS_BIN_fileRead( value, &g_binCACert );
+    if( ret != 0 )
+    {
+        fprintf( stderr, "fail to open ca cert(%s)\n", value );
+        exit(0);
+    }
+
+    value = JS_CFG_getValue( g_pEnvList, "CA_PRIKEY_PATH");
+    if( value == NULL )
+    {
+        fprintf( stderr, "You have to set 'CA_PRIKEY_PATH'\n" );
+        exit(0);
+    }
+
+    ret = JS_BIN_fileRead( value, &g_binCAPriKey );
+    if( ret != 0 )
+    {
+        fprintf( stderr, "fail to open ca private key(%s)\n", value );
+        exit(0);
+    }
+
+    value = JS_CFG_getValue( g_pEnvList, "DB_PATH" );
+    if( value == NULL )
+    {
+        fprintf( stderr, "You have to set 'DB_PATH'\n" );
+        exit(0);
+    }
+
+    g_dbPath = JS_strdup( value );
+
+    printf( "CMP Server Init OK\n" );
     return 0;
 }
 
@@ -180,7 +248,7 @@ int main( int argc, char *argv[] )
 {
     int     nOpt = 0;
 
-    sprintf( g_sConfigPath, "%s", "ca_cmp.cfg" );
+    sprintf( g_sConfigPath, "%s", "../ca_cmp.cfg" );
 
     while(( nOpt = getopt( argc, argv, "c:vh")) != -1 )
     {

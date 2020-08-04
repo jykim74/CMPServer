@@ -488,9 +488,8 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     }
 
     JS_BIN_set( &binKID, pASenderKID->data, pASenderKID->length );
+    JS_BIN_string( &binKID, &pKID );
 
-    JS_BIN_encodeHex( &binKID, &pKID );
-    fprintf( stderr, "KID : %s\n", pKID );
 
     ret = JS_DB_getUserByRefNum( db, pKID, &sDBUser );
     if( ret >= 0 && strlen( sDBUser.pAuthCode ) > 0 )
@@ -504,7 +503,13 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     {
         BIN         binCert;
         unsigned char   *pPosCert = NULL;
+        if( pKID )
+        {
+            JS_free( pKID );
+            pKID = NULL;
+        }
 
+        JS_BIN_encodeHex( &binKID, &pKID );
         JS_DB_getCertByKeyHash( db, pKID, &sDBCert );
         JS_BIN_decodeHex( sDBCert.pCert, &binCert );
 

@@ -15,8 +15,8 @@ BIN     g_binRootCert = {0,0};
 BIN     g_binCACert = {0,0};
 BIN     g_binCAPriKey = {0,0};
 
-int     g_nCertPolicyNum = 1;
-int     g_nIssuerNum = 1;
+int     g_nCertPolicyNum = -1;
+int     g_nIssuerNum = -1;
 
 JEnvList    *g_pEnvList = NULL;
 
@@ -159,16 +159,6 @@ int CMP_SSL_Service( JThreadInfo *pThInfo )
 
 int Init()
 {
-    /*
-    const char  *pRootCertPath = "D:/certs/root_ca_cert.der";
-    const char  *pCACertPath = "D:/certs/ca_cert.der";
-    const char  *pCAPriKeyPath = "D:/certs/ca_key.der";
-
-    JS_BIN_fileRead( pRootCertPath, &g_binRootCert );
-    JS_BIN_fileRead( pCACertPath, &g_binCACert );
-    JS_BIN_fileRead( pCAPriKeyPath, &g_binCAPriKey );
-    */
-
     int ret = 0;
     const char *value = NULL;
 
@@ -230,6 +220,24 @@ int Init()
     }
 
     g_dbPath = JS_strdup( value );
+
+    value = JS_CFG_getValue( g_pEnvList, "CERT_POLICY" );
+    if( value == NULL )
+    {
+        fprintf( stderr, "You have to set 'CERT_POLICY'\n" );
+        exit(0);
+    }
+
+    g_nCertPolicyNum = atoi( value );
+
+    value = JS_CFG_getValue( g_pEnvList, "ISSUER_NUM" );
+    if( value == NULL )
+    {
+        fprintf( stderr, "You have to set 'ISSUER_NUM'\n" );
+        exit(0);
+    }
+
+    g_nIssuerNum = atoi( value );
 
     printf( "CMP Server Init OK\n" );
     return 0;

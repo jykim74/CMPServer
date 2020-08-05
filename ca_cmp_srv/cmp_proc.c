@@ -6,6 +6,7 @@
 #include "js_pki_internal.h"
 #include "js_pki_x509.h"
 #include "js_pki_tools.h"
+#include "js_log.h"
 
 #include "cmp_srv.h"
 
@@ -173,6 +174,8 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
 
 
         int nSeq = JS_DB_getSeq( db, "TB_CERT" );
+        nSeq++;
+
         sprintf( sSerial, "%d", nSeq );
 
         sprintf( sSubjectName, "CN=%s,C=kr", pDBUser->pName );
@@ -202,6 +205,13 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
 
 
         ret = makeCert( &sDBCertPolicy, pDBPolicyExtList, &sIssueCertInfo, nKeyType, pNewCert );
+        if( ret != 0 )
+        {
+            JS_LOG_write( JS_LOG_LEVEL_ERROR, "fail to make certificate(ret:%d)", ret );
+            JS_PKI_resetIssueCertInfo( &sIssueCertInfo );
+            break;
+        }
+
         JS_BIN_encodeHex( pNewCert, &pHexCert );
 
         JS_PKI_getCertInfo( pNewCert, &sNewCertInfo, NULL );
@@ -328,7 +338,7 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
         int nSeq = JS_DB_getSeq( db, "TB_CERT" );
         sprintf( sSerial, "%d", nSeq );
 
-        sprintf( sSubjectName, "CN=%s,C=kr", pDBCert->pSubjectDN );
+        sprintf( sSubjectName, "%s", pDBCert->pSubjectDN );
         time_t now_t = time(NULL);
 
         if( sDBCertPolicy.nNotBefore <= 0 )
@@ -355,6 +365,13 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
 
 
         ret = makeCert( &sDBCertPolicy, pDBPolicyExtList, &sIssueCertInfo, nKeyType, pNewCert );
+        if( ret != 0 )
+        {
+            JS_LOG_write( JS_LOG_LEVEL_ERROR, "fail to make certificate (ret:%d)", ret );
+            JS_PKI_resetIssueCertInfo( &sIssueCertInfo );
+            break;
+        }
+
         JS_BIN_encodeHex( pNewCert, &pHexCert );
 
         JS_PKI_getCertInfo( pNewCert, &sNewCertInfo, NULL );

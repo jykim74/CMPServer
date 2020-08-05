@@ -542,6 +542,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
 
     if( nReqType == OSSL_CMP_PKIBODY_IR || nReqType == OSSL_CMP_PKIBODY_CR )
     {
+        printf( "Req : IR or CR\n" );
         BIN binNewCert = {0,0};
         X509 *pXNewCert = NULL;
         const unsigned char *pPosNewCert = NULL;
@@ -555,6 +556,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     }
     else if( nReqType == OSSL_CMP_PKIBODY_KUR )
     {
+        printf( "Req : KUR\n" );
         BIN binNewCert = {0,0};
         X509 *pXNewCert = NULL;
         const unsigned char *pPosNewCert = NULL;
@@ -571,15 +573,18 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     }
     else if( nReqType == OSSL_CMP_PKIBODY_RR )
     {
+        printf( "Req : RR\n" );
         procRR( db, pCTX, &sDBCert, pBody );
         OSSL_CMP_SRV_CTX_set1_certOut( pSrvCTX, pXSignCert );
     }
     else if( nReqType == OSSL_CMP_PKIBODY_GENM )
     {
+        printf( "Req : GENM\N");
         procGENM( pCTX, pBody );
     }
     else if( nReqType == OSSL_CMP_PKIBODY_CERTCONF )
     {
+        printf( "Req : CERTCONF\n" );
         BIN binCert = {0,0};
         const unsigned char *pPosCert = NULL;
         procCertConf( db, pCTX, &sDBUser, &sDBCert, pBody, &binCert );

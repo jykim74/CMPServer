@@ -7,6 +7,7 @@
 #include "js_http.h"
 #include "js_db.h"
 #include "js_cfg.h"
+#include "js_log.h"
 
 #include "js_process.h"
 #include "cmp_srv.h"
@@ -239,6 +240,9 @@ int Init()
 
     g_nIssuerNum = atoi( value );
 
+    JS_LOG_open( "./log", "cmp", JS_LOG_TYPE_DAILY );
+    JS_LOG_setLevel( JS_LOG_LEVEL_VERBOSE );
+
     printf( "CMP Server Init OK\n" );
     return 0;
 }
@@ -277,7 +281,7 @@ int main( int argc, char *argv[] )
 
     Init();
 
-    JS_THD_logInit( "./log", "cmp", 2 );
+    JS_THD_logInit( "./log", "net", 2 );
     JS_THD_registerService( "JS_CMP", NULL, 9000, 4, NULL, CMP_Service );
     JS_THD_registerService( "JS_CMP_SSL", NULL, 9100, 4, NULL, CMP_SSL_Service );
     JS_THD_serviceStartAll();

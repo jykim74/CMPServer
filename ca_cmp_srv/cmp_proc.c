@@ -39,7 +39,6 @@ int procGENM( OSSL_CMP_CTX *pCTX, void *pBody )
         ASN1_TYPE_get_octetstring( pAType, sBuf, 1024 );
     }
 
-
     return 0;
 }
 
@@ -453,7 +452,8 @@ int procCertConf( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, JDB_Cert *
 int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
 {
     int ret = 0;
-    char    *pHex = NULL;
+    char    *pReqHex = NULL;
+    char    *pRspHex = NULL;
 
     OSSL_CMP_MSG    *pReqMsg = NULL;
     OSSL_CMP_MSG    *pRspMsg = NULL;
@@ -475,6 +475,9 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
 
     memset( &sDBCert, 0x00, sizeof(sDBCert));
     memset( &sDBUser, 0x00, sizeof(sDBUser));
+
+    JS_BIN_encodeHex( pReq, &pReqHex );
+    if( pReqHex ) JS_LOG_write( JS_LOG_LEVEL_VERBOSE, "Req:%s", pReqHex );
 
     pXCerts = sk_X509_new_null();
 
@@ -579,7 +582,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     }
     else if( nReqType == OSSL_CMP_PKIBODY_GENM )
     {
-        printf( "Req : GENM\N");
+        printf( "Req : GENM\n");
         procGENM( pCTX, pBody );
     }
     else if( nReqType == OSSL_CMP_PKIBODY_CERTCONF )
@@ -603,11 +606,14 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     ret = OSSL_CMP_CTX_set_transfer_cb_arg( pCTX, pSrvCTX );
     ret = OSSL_CMP_mock_server_perform( pCTX, pReqMsg, &pRspMsg );
 
+    OSSL_CMP_print_errors( pCTX );
+
     printf( "mock_server ret: %d\n", ret );
 
     if( pRspMsg == NULL )
     {
         fprintf( stderr, "Rsp is null\n" );
+        JS_LOG_write( JS_LOG_LEVEL_ERROR, "Rsp is null" );
         ret = -1;
         goto end;
     }
@@ -616,14 +622,16 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     if( nOutLen > 0 )
     {
         JS_BIN_set( pRsp, pOut, nOutLen );
-        JS_BIN_encodeHex( pRsp, &pHex );
-        printf( "Rsp : %s\n", pHex );
+        JS_BIN_encodeHex( pRsp, &pRspHex );
+        printf( "Rsp : %s\n", pRspHex );
+        if( pReqHex ) JS_LOG_write( JS_LOG_LEVEL_VERBOSE, "Rsp:%s", pRspHex );
     }
 
 end :
     if( pReqMsg ) OSSL_CMP_MSG_free( pReqMsg );
     if( pRspMsg ) OSSL_CMP_MSG_free( pRspMsg );
-    if( pHex ) JS_free( pHex );
+    if( pReqHex ) JS_free( pReqHex );
+    if( pRspHex ) JS_free( pRspHex );
     if( pOut ) OPENSSL_free( pOut );
     if( pSrvCTX ) OSSL_CMP_SRV_CTX_free( pSrvCTX );
 //    if( pXSignCert ) X509_free( pXSignCert );

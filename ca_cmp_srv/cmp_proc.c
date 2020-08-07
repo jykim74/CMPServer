@@ -39,6 +39,15 @@ int procGENM( OSSL_CMP_CTX *pCTX, void *pBody )
         ASN1_TYPE_get_octetstring( pAType, sBuf, 1024 );
     }
 
+    ASN1_TYPE *pAValue = NULL;
+    pAValue = ASN1_TYPE_new();
+    char *pData = "keysize=2048";
+    int nDataLen = strlen( pData );
+
+    ASN1_TYPE_set_octetstring( pAValue, pData, nDataLen );
+    OSSL_CMP_ITAV *itav = OSSL_CMP_ITAV_create( OBJ_nid2obj(NID_id_regInfo), pAValue );
+    OSSL_CMP_CTX_genm_itav_push0( pCTX, itav );
+
     return 0;
 }
 

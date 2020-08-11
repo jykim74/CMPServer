@@ -94,6 +94,8 @@ int CMP_Service( JThreadInfo *pThInfo )
     JNameValList   *pRspHeaderList = NULL;
     JNameValList    *pParamList = NULL;
 
+    const char *pRspMethod = NULL;
+
     sqlite3* db = JS_DB_open( g_dbPath );
     if( db == NULL )
     {
@@ -113,7 +115,7 @@ int CMP_Service( JThreadInfo *pThInfo )
 
     if( strcasecmp( pPath, "/PING") == 0 )
     {
-
+        pRspMethod = JS_HTTP_getStatusMsg( JS_HTTP_STATUS_OK );
     }
     else if( strcasecmp( pPath, "/CMP" ) == 0 )
     {
@@ -124,11 +126,13 @@ int CMP_Service( JThreadInfo *pThInfo )
             fprintf( stderr, "fail to run CMP(%d)\n", ret );
             goto end;
         }
+
+        pRspMethod = JS_HTTP_getStatusMsg( JS_HTTP_STATUS_OK );
     }
 
     JS_UTIL_createNameValList2("accept", "application/cmp-response", &pRspHeaderList);
     JS_UTIL_appendNameValList2( pRspHeaderList, "content-type", "application/cmp-response");
-    const char *pRspMethod = JS_HTTP_getStatusMsg( JS_HTTP_STATUS_OK );
+
 
     ret = JS_HTTP_sendBin( pThInfo->nSockFd, pRspMethod, pRspHeaderList, &binRsp );
     if( ret != 0 )

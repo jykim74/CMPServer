@@ -19,6 +19,8 @@ BIN     g_binCAPriKey = {0,0};
 int     g_nCertPolicyNum = -1;
 int     g_nIssuerNum = -1;
 
+SSL_CTX     *g_pSSLCTX = NULL;
+
 JEnvList    *g_pEnvList = NULL;
 
 const char* g_dbPath = NULL;
@@ -159,6 +161,86 @@ end:
 
 int CMP_SSL_Service( JThreadInfo *pThInfo )
 {
+    int ret = 0;
+    int nType = -1;
+    char *pPath = NULL;
+
+    BIN     binReq = {0,0};
+    BIN     binRsp = {0,0};
+
+    char    *pMethInfo = NULL;
+    JNameValList   *pHeaderList = NULL;
+    JNameValList   *pRspHeaderList = NULL;
+    JNameValList    *pParamList = NULL;
+    SSL         *pSSL = NULL;
+
+    const char *pRspMethod = NULL;
+
+    sqlite3* db = JS_DB_open( g_dbPath );
+    if( db == NULL )
+    {
+        fprintf( stderr, "fail to open db file(%s)\n", g_dbPath );
+        ret = -1;
+        goto end;
+    }
+
+    ret = JS_SSL_accept( g_pSSLCTX, pThInfo->nSockFd, &pSSL );
+    if( ret != 0 )
+    {
+        fprintf( stderr, "fail to accept SSL(%d)\n", ret );
+        goto end;
+    }
+
+    ret = JS_HTTPS_recvBin( pSSL, &pMethInfo, &pHeaderList, &binReq );
+    if( ret != 0 )
+    {
+        fprintf( stderr, "fail to receive message(%d)\n", ret );
+        goto end;
+    }
+
+    JS_HTTP_getMethodPath( pMethInfo, &nType, &pPath, &pParamList );
+
+    if( strcasecmp( pPath, "/PING") == 0 )
+    {
+        pRspMethod = JS_HTTP_getStatusMsg( JS_HTTP_STATUS_OK );
+    }
+    else if( strcasecmp( pPath, "/CMP" ) == 0 )
+    {
+        /* read request body */
+        ret = procCMP( db, &binReq, &binRsp );
+        if( ret != 0 )
+        {
+            fprintf( stderr, "fail to run CMP(%d)\n", ret );
+            goto end;
+        }
+
+        pRspMethod = JS_HTTP_getStatusMsg( JS_HTTP_STATUS_OK );
+    }
+
+    JS_UTIL_createNameValList2("accept", "application/cmp-response", &pRspHeaderList);
+    JS_UTIL_appendNameValList2( pRspHeaderList, "content-type", "application/cmp-response");
+
+
+    ret = JS_HTTPS_sendBin( pSSL, pRspMethod, pRspHeaderList, &binRsp );
+    if( ret != 0 )
+    {
+        fprintf( stderr, "fail to send message(%d)\n", ret );
+        goto end;
+    }
+    /* send response body */
+end:
+    JS_BIN_reset( &binReq );
+    JS_BIN_reset( &binRsp );
+
+    if( pHeaderList ) JS_UTIL_resetNameValList( &pHeaderList );
+    if( pRspHeaderList ) JS_UTIL_resetNameValList( &pRspHeaderList );
+    if( pParamList ) JS_UTIL_resetNameValList( &pParamList );
+
+    if( pMethInfo ) JS_free( pMethInfo );
+    if( pSSL ) JS_SSL_clear( pSSL );
+    if( db ) JS_DB_close( db );
+    if( pPath ) JS_free( pPath );
+
     return 0;
 }
 
@@ -246,6 +328,54 @@ int Init()
 
     JS_LOG_open( "./log", "cmp", JS_LOG_TYPE_DAILY );
     JS_LOG_setLevel( JS_LOG_LEVEL_VERBOSE );
+
+    BIN binSSLCA = {0,0};
+    BIN binSSLCert = {0,0};
+    BIN binSSLPri = {0,0};
+
+    ret = JS_BIN_fileRead( value, &binSSLCA );
+    if( ret != 0 )
+    {
+        fprintf( stderr, "fail to read ssl ca cert(%s)\n", value );
+        exit(0);
+    }
+
+    value = JS_CFG_getValue( g_pEnvList, "SSL_CERT_PATH" );
+    if( value == NULL )
+    {
+        fprintf( stderr, "You have to set 'SSL_CERT_PATH'\n" );
+        exit(0);
+    }
+
+    ret = JS_BIN_fileRead( value, &binSSLCert );
+    if( ret != 0 )
+    {
+        fprintf( stderr, "fail to read ssl cert(%s)\n", value );
+        exit(0);
+    }
+
+    value = JS_CFG_getValue( g_pEnvList, "SSL_PRIKEY_PATH" );
+    if( value == NULL )
+    {
+        fprintf( stderr, "You have to set 'SSL_PRIKEY_PATH'\n" );
+        exit(0);
+    }
+
+    ret = JS_BIN_fileRead( value, &binSSLPri );
+    if( ret != 0 )
+    {
+        fprintf( stderr, "fail to read ssl private key(%s)\n", value );
+        exit(0);
+    }
+
+    JS_SSL_initServer( &g_pSSLCTX );
+    JS_SSL_setCertAndPriKey( g_pSSLCTX, &binSSLPri, &binSSLCert );
+    JS_SSL_setClientCACert( g_pSSLCTX, &binSSLCA );
+
+    JS_BIN_reset( &binSSLCA );
+    JS_BIN_reset( &binSSLCert );
+    JS_BIN_reset( &binSSLPri );
+
 
     printf( "CMP Server Init OK\n" );
     return 0;

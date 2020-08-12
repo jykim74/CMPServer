@@ -333,6 +333,13 @@ int Init()
     BIN binSSLCert = {0,0};
     BIN binSSLPri = {0,0};
 
+    value = JS_CFG_getValue( g_pEnvList, "SSL_CA_CERT_PATH" );
+    if( value == NULL )
+    {
+        fprintf( stderr, "You have to set 'SSL_CA_CERT_PATH'\n" );
+        exit(0);
+    }
+
     ret = JS_BIN_fileRead( value, &binSSLCA );
     if( ret != 0 )
     {

@@ -38,3 +38,6 @@ win32 {
 
 HEADERS += \
     cmp_srv.h
+
+DISTFILES += \
+    ../ca_cmp.cfg

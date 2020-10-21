@@ -119,6 +119,10 @@ int CMP_Service( JThreadInfo *pThInfo )
     {
         pRspMethod = JS_HTTP_getStatusMsg( JS_HTTP_STATUS_OK );
     }
+    else if( strcasecmp( pPath, "/pkiclient.exe") == 0 )
+    {
+        ret = procSCEP( db, pParamList, &binReq, &binRsp );
+    }
     else if( strcasecmp( pPath, "/CMP" ) == 0 )
     {
         /* read request body */
@@ -203,6 +207,10 @@ int CMP_SSL_Service( JThreadInfo *pThInfo )
     if( strcasecmp( pPath, "/PING") == 0 )
     {
         pRspMethod = JS_HTTP_getStatusMsg( JS_HTTP_STATUS_OK );
+    }
+    else if( strcasecmp( pPath, "/pkiclient.exe") == 0 )
+    {
+        ret = procSCEP( db, pParamList, &binReq, &binRsp );
     }
     else if( strcasecmp( pPath, "/CMP" ) == 0 )
     {

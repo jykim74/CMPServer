@@ -9,6 +9,7 @@
 
 const char *getBuildInfo();
 int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp );
+int procSCEP( sqlite3* db, const JNameValList *pParamList, const BIN *pReq,  BIN *pRsp );
 OSSL_CMP_SRV_CTX* setupServerCTX();
 
 #endif // CMP_SRV_H

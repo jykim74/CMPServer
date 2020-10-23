@@ -651,43 +651,5 @@ end :
     return ret;
 }
 
-int workPKIOperation( sqlite3* db, const BIN *pPKIReq, BIN *pCertRsp )
-{
-    return 0;
-}
 
-int procSCEP( sqlite3* db, const JNameValList *pParamList, const BIN *pReq, BIN *pRsp )
-{
-    int ret = 0;
-    const char *pOper = NULL;
-    JS_UTIL_printNameValList( stdout, "ParamList", pParamList );
 
-    pOper = JS_UTIL_valueFromNameValList( pParamList, "operation" );
-
-    if( pOper == NULL )
-    {
-        fprintf( stderr, "There is no operation\n" );
-        return -1;
-    }
-
-    if( strcasecmp( pOper, "GetCACaps") == 0 )
-    {
-        const char *pMsg = "POSTPKIOperation\r\nRenewal\r\nSHA-1";
-        JS_BIN_set( pRsp, pMsg, strlen( pMsg ) );
-    }
-    else if( strcasecmp( pOper, "GetCACert" ) == 0 )
-    {
-        JS_BIN_copy( pRsp, &g_binCACert );
-    }
-    else if( strcasecmp( pOper, "PKIOperation" ) == 0 )
-    {
-        ret = workPKIOperation( db, pReq, pRsp );
-    }
-    else
-    {
-        fprintf( stderr, "invalid operation : %s\n", pOper );
-        return -1;
-    }
-
-    return ret;
-}

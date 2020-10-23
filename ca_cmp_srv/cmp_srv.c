@@ -131,11 +131,10 @@ int CMP_Service( JThreadInfo *pThInfo )
         {
             fprintf( stderr, "fail to run CMP(%d)\n", ret );
             goto end;
-        }
-
-        pRspMethod = JS_HTTP_getStatusMsg( JS_HTTP_STATUS_OK );
+        }   
     }
 
+    pRspMethod = JS_HTTP_getStatusMsg( JS_HTTP_STATUS_OK );
     JS_UTIL_createNameValList2("accept", "application/cmp-response", &pRspHeaderList);
     JS_UTIL_appendNameValList2( pRspHeaderList, "content-type", "application/cmp-response");
 
@@ -221,10 +220,9 @@ int CMP_SSL_Service( JThreadInfo *pThInfo )
             fprintf( stderr, "fail to run CMP(%d)\n", ret );
             goto end;
         }
-
-        pRspMethod = JS_HTTP_getStatusMsg( JS_HTTP_STATUS_OK );
     }
 
+    pRspMethod = JS_HTTP_getStatusMsg( JS_HTTP_STATUS_OK );
     JS_UTIL_createNameValList2("accept", "application/cmp-response", &pRspHeaderList);
     JS_UTIL_appendNameValList2( pRspHeaderList, "content-type", "application/cmp-response");
 

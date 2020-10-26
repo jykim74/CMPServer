@@ -23,31 +23,145 @@ extern BIN     g_binSignPri;
 extern int      g_nCertPolicyNum;
 extern int      g_nIssuerNum;
 
-int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pEnvData, BIN *pCertRsp )
+int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSignedData )
 {
     int ret = 0;
-    BIN binDevData = {0,0};
+
     JReqInfo sReqInfo;
+    JDB_CertPolicy sDBCertPolicy;
+    JDB_PolicyExtList *pDBPolicyExtList = NULL;
+    JIssueCertInfo sIssueCertInfo;
+    long uNotBefore = -1;
+    long uNotAfter = -1;
+
+    char    sSerial[128];
+    int nSeq = 0;
+    int nKeyType = -1;
+    BIN binPub = {0,0};
+    BIN binNewCert = {0,0};
+
+    JCertInfo   sNewCertInfo;
+    JDB_Cert    sNewDBcert;
+    char        sKeyID[128];
+
+    char        *pHexCert = NULL;
 
     memset( &sReqInfo, 0x00, sizeof(sReqInfo));
+    memset( &sDBCertPolicy, 0x00, sizeof(sDBCertPolicy));
+    memset( &sIssueCertInfo, 0x00, sizeof(sIssueCertInfo));
+    memset( &sNewCertInfo, 0x00, sizeof(sNewCertInfo));
+    memset( &sNewDBcert, 0x00, sizeof(sNewDBcert));
+    memset( &sKeyID, 0x00, sizeof(sKeyID));
 
-    ret = JS_PKCS7_makeDevelopedData( pEnvData, &g_binCAPriKey, &g_binCACert, &binDevData );
-    if( ret != 0 )
+    JS_DB_getCertPolicy( db, g_nCertPolicyNum, &sDBCertPolicy );
+    JS_DB_getCRLPolicyExtList( db, sDBCertPolicy.nNum, &pDBPolicyExtList );
+
+    time_t now_t = time(NULL);
+
+    if( sDBCertPolicy.nNotBefore <= 0 )
     {
-        fprintf( stderr, "fail to develop data : %d\n", ret );
-        goto end;
+        uNotBefore = 0;
+        uNotAfter = sDBCertPolicy.nNotAfter * 60 * 60 * 24;
+        uNotBefore = 0;
+    }
+    else
+    {
+        uNotBefore = sDBCertPolicy.nNotBefore - now_t;
+        uNotAfter = sDBCertPolicy.nNotAfter - now_t;
     }
 
-    ret = JS_PKI_getReqInfo( &binDevData, &sReqInfo, NULL );
+    ret = JS_PKI_getReqInfo( pData, &sReqInfo, NULL );
     if( ret != 0 )
     {
         fprintf( stderr, "fail to parse request : %d\n", ret );
         goto end;
     }
 
+    JS_BIN_decodeHex( sReqInfo.pPublicKey, &binPub );
+    nKeyType = JS_PKI_getPubKeyType( &binPub );
+    JS_PKI_getKeyIdentifier( &binPub, sKeyID );
+
+    nSeq = JS_DB_getSeq( db, "TB_CERT" );
+    nSeq++;
+
+    sprintf( sSerial, "%d", nSeq );
+
+    JS_PKI_setIssueCertInfo( &sIssueCertInfo,
+                             sDBCertPolicy.nVersion,
+                             sSerial,
+                             sDBCertPolicy.pHash,
+                             sReqInfo.pSubjectDN,
+                             uNotBefore,
+                             uNotAfter,
+                             nKeyType,
+                             sReqInfo.pPublicKey );
+
+    ret = makeCert( &sDBCertPolicy, pDBPolicyExtList, &sIssueCertInfo, nKeyType, &binNewCert );
+    if( ret != 0 )
+    {
+        fprintf( stderr, "fail to make certificate : %d\n", ret );
+        goto end;
+    }
+
+    JS_BIN_encodeHex( &binNewCert, &pHexCert );
+
+    ret = JS_PKI_getCertInfo( &binNewCert, &sNewCertInfo, NULL );
+
+    JS_DB_setCert( &sNewDBcert,
+                   -1,
+                   now_t,
+                   -1,
+                   -1,
+                   sNewCertInfo.pSignAlgorithm,
+                   pHexCert,
+                   0,
+                   0,
+                   g_nIssuerNum,
+                   sNewCertInfo.pSubjectName,
+                   0,
+                   sNewCertInfo.pSerial,
+                   sNewCertInfo.pDNHash,
+                   sKeyID,
+                   "" );
+
+    ret = JS_SCEP_genSignedDataWithoutSign( &binNewCert, NULL, pSignedData );
+
 end :
-    JS_BIN_reset( &binDevData );
     JS_PKI_resetReqInfo( &sReqInfo );
+    JS_DB_resetCertPolicy( &sDBCertPolicy );
+    if( pDBPolicyExtList ) JS_DB_resetPolicyExtList( &pDBPolicyExtList );
+    JS_PKI_resetIssueCertInfo( &sIssueCertInfo );
+    JS_BIN_reset( &binPub );
+    JS_PKI_resetCertInfo( &sNewCertInfo );
+    JS_DB_resetCert( &sNewDBcert );
+    if( pHexCert ) JS_free( pHexCert );
+    JS_BIN_reset( &binNewCert );
+
+    return ret;
+}
+
+int runGetCRL( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSignedData )
+{
+    int ret = 0;
+    PKCS7_ISSUER_AND_SERIAL *pXIAS = NULL;
+    const unsigned char *pPos = pData->pVal;
+    BIN binCRL = {0,0};
+    JDB_CRL sDBCRL;
+
+    memset( &sDBCRL, 0x00, sizeof(sDBCRL));
+
+    pXIAS = d2i_PKCS7_ISSUER_AND_SERIAL( NULL, &pPos, pData->nLen );
+
+    JS_DB_getLatestCRL( db, &sDBCRL );
+
+    JS_BIN_decodeHex( sDBCRL.pCRL, &binCRL );
+
+    ret = JS_SCEP_genSignedDataWithoutSign( NULL, &binCRL, pSignedData );
+
+end :
+    if( pXIAS ) PKCS7_ISSUER_AND_SERIAL_free( pXIAS );
+    JS_DB_resetCRL( &sDBCRL );
+    JS_BIN_reset( &binCRL );
 
     return ret;
 }
@@ -61,6 +175,11 @@ int workPKIOperation( sqlite3* db, const BIN *pPKIReq, BIN *pCertRsp )
     BIN binSenderNonce = {0,0};
     char *pTransID = NULL;
     BIN binData = {0,0};
+    BIN binDevData = {0,0};
+    BIN binResData = {0,0};
+    BIN binEnvData = {0,0};
+
+    BIN binSrvSenderNonce = {0,0};
 
     ret = JS_SCEP_verifyParseSignedData( pPKIReq, &nType, &binSignCert, &binSenderNonce, &pTransID, &binData );
     if( ret != 0 )
@@ -69,13 +188,20 @@ int workPKIOperation( sqlite3* db, const BIN *pPKIReq, BIN *pCertRsp )
         goto end;
     }
 
+    ret = JS_PKCS7_makeDevelopedData( &binData, &g_binCAPriKey, &g_binCACert, &binDevData );
+    if( ret != 0 )
+    {
+        fprintf( stderr, "fail to develop data : %d\n", ret );
+        goto end;
+    }
+
     if( nType == JS_SCEP_REQUEST_PKCSREQ )
     {
-        ret = runPKIReq( db, &binSignCert, &binData, pCertRsp );
+        ret = runPKIReq( db, &binSignCert, &binDevData, &binResData );
     }
     else if( nType == JS_SCEP_REQUEST_GETCRL )
     {
-
+        ret = runGetCRL( db, &binSignCert, &binDevData, &binResData );
     }
     else if( nType == JS_SCEP_REQUEST_GETCERT )
     {
@@ -92,12 +218,28 @@ int workPKIOperation( sqlite3* db, const BIN *pPKIReq, BIN *pCertRsp )
         goto end;
     }
 
+    JS_PKCS7_makeEnvelopedData( &binResData, &g_binCAPriKey, &binResData );
+
+    JS_PKI_genRandom( 16, &binSrvSenderNonce );
+    JS_SCEP_makeSignedData( JS_SCEP_REPLY_CERTREP,
+                            "SHA256",
+                            &binEnvData,
+                            &g_binCAPriKey,
+                            &g_binCACert,
+                            &binSrvSenderNonce,
+                            &binSenderNonce,
+                            pTransID,
+                            pCertRsp );
 
 end :
     JS_BIN_reset( &binSignCert );
     JS_BIN_reset( &binSenderNonce );
+    JS_BIN_reset( &binSrvSenderNonce );
     JS_BIN_reset( &binData );
+    JS_BIN_reset( &binDevData );
     if( pTransID ) JS_free( pTransID );
+    JS_BIN_reset( &binResData );
+    JS_BIN_reset( &binEnvData );
 
     return ret;
 }

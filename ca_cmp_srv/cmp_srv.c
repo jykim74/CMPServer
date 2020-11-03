@@ -127,11 +127,12 @@ int CMP_Service( JThreadInfo *pThInfo )
     {
         /* read request body */
         ret = procCMP( db, &binReq, &binRsp );
-        if( ret != 0 )
-        {
-            fprintf( stderr, "fail to run CMP(%d)\n", ret );
-            goto end;
-        }   
+    }
+
+    if( ret != 0 )
+    {
+        fprintf( stderr, "fail to run ca(%d)\n", ret );
+        goto end;
     }
 
     pRspMethod = JS_HTTP_getStatusMsg( JS_HTTP_STATUS_OK );

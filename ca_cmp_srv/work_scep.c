@@ -53,8 +53,8 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
     memset( &sNewDBcert, 0x00, sizeof(sNewDBcert));
     memset( &sKeyID, 0x00, sizeof(sKeyID));
 
-    JS_DB_getCertPolicy( db, g_nCertPolicyNum, &sDBCertPolicy );
-    JS_DB_getCRLPolicyExtList( db, sDBCertPolicy.nNum, &pDBPolicyExtList );
+    ret = JS_DB_getCertPolicy( db, g_nCertPolicyNum, &sDBCertPolicy );
+    ret = JS_DB_getCertPolicyExtList( db, sDBCertPolicy.nNum, &pDBPolicyExtList );
 
     time_t now_t = time(NULL);
 
@@ -125,6 +125,15 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
                    "" );
 
     ret = JS_SCEP_genSignedDataWithoutSign( &binNewCert, NULL, pSignedData );
+    if( ret != 0 )
+    {
+        fprintf( stderr, "fail to make response signeddata : %d\n", ret );
+        goto end;
+    }
+
+//    JS_BIN_fileWrite( pSignedData, "D:/jsca/rep_signeddata.ber" );
+//    JS_BIN_fileWrite( &binNewCert, "D:/jsca/new_cert.crt" );
+    fprintf( stdout, "SignedData Length : %d\n", pSignedData->nLen );
 
 end :
     JS_PKI_resetReqInfo( &sReqInfo );
@@ -218,10 +227,10 @@ int workPKIOperation( sqlite3* db, const BIN *pPKIReq, BIN *pCertRsp )
         goto end;
     }
 
-    JS_PKCS7_makeEnvelopedData( &binResData, &g_binCAPriKey, &binResData );
+    ret = JS_PKCS7_makeEnvelopedData( &binResData, &binSignCert, &binEnvData );
 
     JS_PKI_genRandom( 16, &binSrvSenderNonce );
-    JS_SCEP_makeSignedData( JS_SCEP_REPLY_CERTREP,
+    ret = JS_SCEP_makeSignedData( JS_SCEP_REPLY_CERTREP,
                             "SHA256",
                             &binEnvData,
                             &g_binCAPriKey,
@@ -229,6 +238,7 @@ int workPKIOperation( sqlite3* db, const BIN *pPKIReq, BIN *pCertRsp )
                             &binSrvSenderNonce,
                             &binSenderNonce,
                             pTransID,
+                            "0",
                             pCertRsp );
 
 end :

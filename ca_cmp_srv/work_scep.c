@@ -163,7 +163,7 @@ int runGetCRL( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
 
     pXIAS = d2i_PKCS7_ISSUER_AND_SERIAL( NULL, &pPos, pData->nLen );
 
-    JS_DB_getLatestCRL( db, &sDBCRL );
+    JS_DB_getLatestCRL( db, g_nIssuerNum, &sDBCRL );
 
     JS_BIN_decodeHex( sDBCRL.pCRL, &binCRL );
 

@@ -6,7 +6,7 @@
 #include "js_bin.h"
 #include "js_pki_x509.h"
 
-#define     JS_CMP_SRV_VERSION          "0.9.1"
+#define     JS_CMP_SRV_VERSION          "0.9.2"
 
 const char *getBuildInfo();
 int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp );

@@ -124,6 +124,8 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
                    sKeyID,
                    "" );
 
+    ret = JS_DB_addCert( db, &sNewDBcert );
+
     ret = JS_SCEP_genSignedDataWithoutSign( &binNewCert, NULL, pSignedData );
     if( ret != 0 )
     {

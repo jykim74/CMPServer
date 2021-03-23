@@ -16,7 +16,7 @@ BIN     g_binRootCert = {0,0};
 BIN     g_binCACert = {0,0};
 BIN     g_binCAPriKey = {0,0};
 
-int     g_nCertPolicyNum = -1;
+int     g_nCertProfileNum = -1;
 int     g_nIssuerNum = -1;
 
 SSL_CTX     *g_pSSLCTX = NULL;
@@ -315,14 +315,14 @@ int Init()
 
     g_dbPath = JS_strdup( value );
 
-    value = JS_CFG_getValue( g_pEnvList, "CERT_POLICY" );
+    value = JS_CFG_getValue( g_pEnvList, "CERT_PROFILE" );
     if( value == NULL )
     {
-        fprintf( stderr, "You have to set 'CERT_POLICY'\n" );
+        fprintf( stderr, "You have to set 'CERT_PROFILE'\n" );
         exit(0);
     }
 
-    g_nCertPolicyNum = atoi( value );
+    g_nCertProfileNum = atoi( value );
 
     value = JS_CFG_getValue( g_pEnvList, "ISSUER_NUM" );
     if( value == NULL )

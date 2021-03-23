@@ -11,7 +11,7 @@
 const char *getBuildInfo();
 int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp );
 int procSCEP( sqlite3* db, const JNameValList *pParamList, const BIN *pReq,  BIN *pRsp );
-int makeCert( JDB_CertPolicy *pDBCertPolicy, JDB_PolicyExtList *pDBPolicyExtList, JIssueCertInfo *pIssueCertInfo, int nKeyType, BIN *pCert );
+int makeCert( JDB_CertProfile *pDBCertProfile, JDB_ProfileExtList *pDBProfileExtList, JIssueCertInfo *pIssueCertInfo, int nKeyType, BIN *pCert );
 OSSL_CMP_SRV_CTX* setupServerCTX();
 
 #endif // CMP_SRV_H

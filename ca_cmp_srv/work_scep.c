@@ -20,7 +20,7 @@ extern BIN     g_binCAPriKey;
 extern BIN     g_binSignCert;
 extern BIN     g_binSignPri;
 
-extern int      g_nCertPolicyNum;
+extern int      g_nCertProfileNum;
 extern int      g_nIssuerNum;
 
 int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSignedData )
@@ -28,8 +28,8 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
     int ret = 0;
 
     JReqInfo sReqInfo;
-    JDB_CertPolicy sDBCertPolicy;
-    JDB_PolicyExtList *pDBPolicyExtList = NULL;
+    JDB_CertProfile sDBCertProfile;
+    JDB_ProfileExtList *pDBProfileExtList = NULL;
     JIssueCertInfo sIssueCertInfo;
     long uNotBefore = -1;
     long uNotAfter = -1;
@@ -47,27 +47,27 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
     char        *pHexCert = NULL;
 
     memset( &sReqInfo, 0x00, sizeof(sReqInfo));
-    memset( &sDBCertPolicy, 0x00, sizeof(sDBCertPolicy));
+    memset( &sDBCertProfile, 0x00, sizeof(sDBCertProfile));
     memset( &sIssueCertInfo, 0x00, sizeof(sIssueCertInfo));
     memset( &sNewCertInfo, 0x00, sizeof(sNewCertInfo));
     memset( &sNewDBcert, 0x00, sizeof(sNewDBcert));
     memset( &sKeyID, 0x00, sizeof(sKeyID));
 
-    ret = JS_DB_getCertPolicy( db, g_nCertPolicyNum, &sDBCertPolicy );
-    ret = JS_DB_getCertPolicyExtList( db, sDBCertPolicy.nNum, &pDBPolicyExtList );
+    ret = JS_DB_getCertProfile( db, g_nCertProfileNum, &sDBCertProfile );
+    ret = JS_DB_getCertProfileExtList( db, sDBCertProfile.nNum, &pDBProfileExtList );
 
     time_t now_t = time(NULL);
 
-    if( sDBCertPolicy.nNotBefore <= 0 )
+    if( sDBCertProfile.nNotBefore <= 0 )
     {
         uNotBefore = 0;
-        uNotAfter = sDBCertPolicy.nNotAfter * 60 * 60 * 24;
+        uNotAfter = sDBCertProfile.nNotAfter * 60 * 60 * 24;
         uNotBefore = 0;
     }
     else
     {
-        uNotBefore = sDBCertPolicy.nNotBefore - now_t;
-        uNotAfter = sDBCertPolicy.nNotAfter - now_t;
+        uNotBefore = sDBCertProfile.nNotBefore - now_t;
+        uNotAfter = sDBCertProfile.nNotAfter - now_t;
     }
 
     ret = JS_PKI_getReqInfo( pData, &sReqInfo, NULL );
@@ -87,16 +87,16 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
     sprintf( sSerial, "%d", nSeq );
 
     JS_PKI_setIssueCertInfo( &sIssueCertInfo,
-                             sDBCertPolicy.nVersion,
+                             sDBCertProfile.nVersion,
                              sSerial,
-                             sDBCertPolicy.pHash,
+                             sDBCertProfile.pHash,
                              sReqInfo.pSubjectDN,
                              uNotBefore,
                              uNotAfter,
                              nKeyType,
                              sReqInfo.pPublicKey );
 
-    ret = makeCert( &sDBCertPolicy, pDBPolicyExtList, &sIssueCertInfo, nKeyType, &binNewCert );
+    ret = makeCert( &sDBCertProfile, pDBProfileExtList, &sIssueCertInfo, nKeyType, &binNewCert );
     if( ret != 0 )
     {
         fprintf( stderr, "fail to make certificate : %d\n", ret );
@@ -139,8 +139,8 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
 
 end :
     JS_PKI_resetReqInfo( &sReqInfo );
-    JS_DB_resetCertPolicy( &sDBCertPolicy );
-    if( pDBPolicyExtList ) JS_DB_resetPolicyExtList( &pDBPolicyExtList );
+    JS_DB_resetCertProfile( &sDBCertProfile );
+    if( pDBProfileExtList ) JS_DB_resetProfileExtList( &pDBProfileExtList );
     JS_PKI_resetIssueCertInfo( &sIssueCertInfo );
     JS_BIN_reset( &binPub );
     JS_PKI_resetCertInfo( &sNewCertInfo );

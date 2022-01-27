@@ -18,6 +18,8 @@ BIN     g_binCAPriKey = {0,0};
 
 int     g_nCertProfileNum = -1;
 int     g_nIssuerNum = -1;
+int     g_nPort = 9000;
+int     g_nSSLPort = 9100;
 
 SSL_CTX     *g_pSSLCTX = NULL;
 
@@ -382,6 +384,12 @@ int Init()
         exit(0);
     }
 
+    value = JS_CFG_getValue( g_pEnvList, "CMP_PORT" );
+    if( value ) g_nPort = atoi( value );
+
+    value = JS_CFG_getValue( g_pEnvList, "CMP_SSL_PORT" );
+    if( value ) g_nSSLPort = atoi( value );
+
     JS_SSL_initServer( &g_pSSLCTX );
     JS_SSL_setCertAndPriKey( g_pSSLCTX, &binSSLPri, &binSSLCert );
     JS_SSL_setClientCACert( g_pSSLCTX, &binSSLCA );
@@ -391,7 +399,7 @@ int Init()
     JS_BIN_reset( &binSSLPri );
 
 
-    printf( "CMP Server Init OK\n" );
+    printf( "CMP Server Init OK [Port:%d SSL:%d]\n", g_nPort, g_nSSLPort );
     return 0;
 }
 
@@ -430,8 +438,8 @@ int main( int argc, char *argv[] )
     Init();
 
     JS_THD_logInit( "./log", "net", 2 );
-    JS_THD_registerService( "JS_CMP", NULL, 9000, 4, NULL, CMP_Service );
-    JS_THD_registerService( "JS_CMP_SSL", NULL, 9100, 4, NULL, CMP_SSL_Service );
+    JS_THD_registerService( "JS_CMP", NULL, g_nPort, 4, NULL, CMP_Service );
+    JS_THD_registerService( "JS_CMP_SSL", NULL, g_nSSLPort, 4, NULL, CMP_SSL_Service );
     JS_THD_serviceStartAll();
 
 

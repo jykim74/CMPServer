@@ -41,6 +41,49 @@ const char *getBuildInfo()
 
 OSSL_CMP_SRV_CTX* setupServerCTX()
 {
+#ifdef OPENSSL_V3
+    OSSL_CMP_CTX        *pCTX = NULL;
+    OSSL_CMP_SRV_CTX    *pSrvCTX = NULL;
+    X509                *pXCACert = NULL;
+    X509                *pXRootCACert = NULL;
+    EVP_PKEY            *pECAPriKey = NULL;
+    X509_STORE          *pXStore = NULL;
+
+    unsigned char *pPosCACert = g_binCACert.pVal;
+    unsigned char *pPosCAPriKey = g_binCAPriKey.pVal;
+    unsigned char *pPosRootCACert = g_binRootCert.pVal;
+
+    pSrvCTX = OSSL_CMP_SRV_CTX_new( NULL, NULL );
+    if( pSrvCTX == NULL ) return NULL;
+
+    pCTX = OSSL_CMP_SRV_CTX_get0_cmp_ctx( pSrvCTX );
+
+    pXRootCACert = d2i_X509( NULL, &pPosRootCACert, g_binRootCert.nLen );
+    pXCACert = d2i_X509( NULL, &pPosCACert, g_binCACert.nLen );
+    pECAPriKey = d2i_PrivateKey( EVP_PKEY_RSA, NULL, &pPosCAPriKey, g_binCAPriKey.nLen );
+
+    pXStore = X509_STORE_new();
+    X509_STORE_add_cert( pXStore, pXRootCACert );
+    X509_STORE_add_cert( pXStore, pXCACert );
+    OSSL_CMP_CTX_set0_trustedStore( pCTX, pXStore );
+
+    OSSL_CMP_CTX_set1_cert( pCTX, pXCACert );
+
+    X509_free( pXCACert );
+
+    OSSL_CMP_CTX_set1_pkey( pCTX, pECAPriKey );
+
+//    ossl_cmp_mock_srv_set_checkAfterTime( pSrvCTX, 1 );
+
+    int nStatus = 0;
+    int nFailInfo = -1;
+
+
+//    ossl_cmp_mock_srv_set_statusInfo( pSrvCTX, nStatus, nFailInfo, "Status" );
+
+    return pSrvCTX;
+#else
+
     OSSL_CMP_CTX        *pCTX = NULL;
     OSSL_CMP_SRV_CTX    *pSrvCTX = NULL;
     X509                *pXCACert = NULL;
@@ -81,6 +124,7 @@ OSSL_CMP_SRV_CTX* setupServerCTX()
 
 
     return pSrvCTX;
+#endif
 }
 
 

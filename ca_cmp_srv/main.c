@@ -14,6 +14,8 @@ BIN     binSecret = {0,0};
 BIN     binSignCert = {0,0};
 BIN     binSignPri= {0,0};
 
+#ifndef OPENSSL_V3
+
 void testInit()
 {
     JS_BIN_set( &binRef, (const unsigned char *)"12345678", 8 );
@@ -326,3 +328,5 @@ int test_main()
 
     return 0;
 }
+
+#endif

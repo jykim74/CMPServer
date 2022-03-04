@@ -837,6 +837,12 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     JDB_Cert        sDBCert;
     JDB_User        sDBUser;
 
+    if( pSrvCTX == NULL || pCTX == NULL )
+    {
+        fprintf(stderr, "SrvCTX or CTX is null\n" );
+        return -1;
+    }
+
     memset( &sDBCert, 0x00, sizeof(sDBCert));
     memset( &sDBUser, 0x00, sizeof(sDBUser));
 
@@ -966,7 +972,16 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
         JS_BIN_reset( &binCert );
     }
 
-    ret = OSSL_CMP_CTX_set_transfer_cb_arg( pCTX, pSrvCTX );
+
+    ret = OSSL_CMP_CTX_set_transfer_cb_arg( pCTX, NULL );
+    if( ret != 1 )
+    {
+        fprintf( stderr, "OSSL_CMP_CTX_set_transfer_cb_arg fail:%d\n", ret );
+        ret = -1;
+        goto end;
+    }
+
+
     pRspMsg = OSSL_CMP_CTX_server_perform( pCTX, pReqMsg );
 
     OSSL_CMP_CTX_print_errors( pCTX );
@@ -989,6 +1004,8 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
         printf( "Rsp : %s\n", pRspHex );
         if( pReqHex ) JS_LOG_write( JS_LOG_LEVEL_VERBOSE, "Rsp:%s", pRspHex );
     }
+
+    ret = 0;
 
 end :
     if( pReqMsg ) OSSL_CMP_MSG_free( pReqMsg );

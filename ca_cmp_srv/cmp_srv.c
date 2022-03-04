@@ -12,6 +12,10 @@
 #include "js_process.h"
 #include "cmp_srv.h"
 
+#ifdef OPENSSL_V3
+#include "cmp_mock_srv.h"
+#endif
+
 BIN     g_binRootCert = {0,0};
 BIN     g_binCACert = {0,0};
 BIN     g_binCAPriKey = {0,0};
@@ -53,7 +57,10 @@ OSSL_CMP_SRV_CTX* setupServerCTX()
     unsigned char *pPosCAPriKey = g_binCAPriKey.pVal;
     unsigned char *pPosRootCACert = g_binRootCert.pVal;
 
-    pSrvCTX = OSSL_CMP_SRV_CTX_new( NULL, NULL );
+    OSSL_LIB_CTX *lib_ctx = OSSL_LIB_CTX_new();
+//    OSSL_LIB_CTX *lib_ctx = OSSL_LIB_CTX_get0_global_default();
+
+    pSrvCTX = ossl_cmp_mock_srv_new( lib_ctx, NULL );
     if( pSrvCTX == NULL ) return NULL;
 
     pCTX = OSSL_CMP_SRV_CTX_get0_cmp_ctx( pSrvCTX );
@@ -73,13 +80,12 @@ OSSL_CMP_SRV_CTX* setupServerCTX()
 
     OSSL_CMP_CTX_set1_pkey( pCTX, pECAPriKey );
 
-//    ossl_cmp_mock_srv_set_checkAfterTime( pSrvCTX, 1 );
+    ossl_cmp_mock_srv_set_checkAfterTime( pSrvCTX, 10 );
 
     int nStatus = 0;
     int nFailInfo = -1;
 
-
-//    ossl_cmp_mock_srv_set_statusInfo( pSrvCTX, nStatus, nFailInfo, "Status" );
+    ossl_cmp_mock_srv_set_statusInfo( pSrvCTX, nStatus, nFailInfo, "Status" );
 
     return pSrvCTX;
 #else

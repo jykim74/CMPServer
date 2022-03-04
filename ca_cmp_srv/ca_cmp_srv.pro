@@ -4,6 +4,7 @@ CONFIG -= app_bundle
 CONFIG -= qt
 
 SOURCES += \
+        cmp_mock_srv.c \
         cmp_proc.c \
         cmp_srv.c \
         main.c \
@@ -59,6 +60,7 @@ win32 {
 }
 
 HEADERS += \
+    cmp_mock_srv.h \
     cmp_srv.h
 
 DISTFILES += \

@@ -911,7 +911,6 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
         OSSL_CMP_CTX_set1_srvCert( pCTX, pXSignCert );
 
         JS_BIN_reset( &binCert );
-//        JS_DB_resetCert( &sDBCert );
     }
 
     if( nReqType == OSSL_CMP_PKIBODY_IR || nReqType == OSSL_CMP_PKIBODY_CR )
@@ -926,10 +925,6 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
         pPosNewCert = binNewCert.pVal;
         pXNewCert = d2i_X509( NULL, &pPosNewCert, binNewCert.nLen );
         ossl_cmp_mock_srv_set1_certOut( pSrvCTX, pXNewCert );
-
- //       OSSL_CMP_CTX_set1_cert( pCTX, pXNewCert );
- //       JS_BIN_reset( &binNewCert );
- //       if( pXNewCert ) X509_free( pXNewCert );
     }
     else if( nReqType == OSSL_CMP_PKIBODY_KUR )
     {
@@ -944,10 +939,6 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
         pPosNewCert = binNewCert.pVal;
         pXNewCert = d2i_X509( NULL, &pPosNewCert, binNewCert.nLen );
         ossl_cmp_mock_srv_set1_certOut( pSrvCTX, pXNewCert );
-
-//        OSSL_CMP_CTX_set1_cert( pCTX, pXNewCert );
-//        JS_BIN_reset( &binNewCert );
-//        if( pXNewCert ) X509_free( pXNewCert );
     }
     else if( nReqType == OSSL_CMP_PKIBODY_RR )
     {
@@ -955,7 +946,6 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
         ret = procRR( db, pCTX, &sDBCert, pBody );
         if( ret != 0 ) fprintf( stderr, "fail procRR: %d\n", ret );
         ossl_cmp_mock_srv_set1_certOut( pSrvCTX, pXSignCert );
-//        OSSL_CMP_CTX_set1_cert( pCTX, pXSignCert );
     }
     else if( nReqType == OSSL_CMP_PKIBODY_GENM )
     {

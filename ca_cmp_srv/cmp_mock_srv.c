@@ -37,7 +37,7 @@ static mock_srv_ctx *mock_srv_ctx_new(void)
 
     if( ctx == NULL ) goto err;
 
-    if(( ctx->statusOut == OSSL_CMP_PKISI_new()) == NULL )
+    if(( ctx->statusOut = OSSL_CMP_PKISI_new()) == NULL )
         goto err;
 
     ctx->certReqId = -1;
@@ -104,7 +104,7 @@ static OSSL_CMP_PKISI *process_cert_request(
     if( OSSL_CMP_MSG_get_bodytype( cert_req ) == OSSL_CMP_KUR && crm != NULL && ctx->certOut != NULL )
     {
         const OSSL_CRMF_CERTID *cid = OSSL_CRMF_MSG_get0_regCtrl_oldCertID( crm );
-        const X509_NAME *issuer = X509_CRL_get_issuer( ctx->certOut );
+        const X509_NAME *issuer = X509_get_issuer_name( ctx->certOut );
         const ASN1_INTEGER *serial = X509_get0_serialNumber(ctx->certOut);
 
         if( cid == NULL )
@@ -119,13 +119,14 @@ static OSSL_CMP_PKISI *process_cert_request(
             ERR_raise(ERR_LIB_CMP, CMP_R_WRONG_CERTID);
             return NULL;
         }
-
+/*
         if( serial != NULL &&
                 ASN1_INTEGER_cmp( serial, OSSL_CRMF_CERTID_get0_serialNumber(cid)) != 0 )
         {
             ERR_raise(ERR_LIB_CMP, CMP_R_WRONG_CERTID);
             return NULL;
         }
+*/
     }
 
     if( ctx->certOut != NULL && (*certOut = X509_dup(ctx->certOut)) == NULL )
@@ -369,7 +370,9 @@ OSSL_CMP_SRV_CTX *ossl_cmp_mock_srv_new( OSSL_LIB_CTX *libctx, const char *propq
                                    process_error,
                                    process_certConf,
                                    process_pollReq ))
+    {
         return srv_ctx;
+    }
 
     mock_srv_ctx_free( ctx );
     OSSL_CMP_SRV_CTX_free( srv_ctx );

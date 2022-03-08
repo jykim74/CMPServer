@@ -57,10 +57,10 @@ OSSL_CMP_SRV_CTX* setupServerCTX()
     unsigned char *pPosCAPriKey = g_binCAPriKey.pVal;
     unsigned char *pPosRootCACert = g_binRootCert.pVal;
 
-    OSSL_LIB_CTX *lib_ctx = OSSL_LIB_CTX_new();
-//    OSSL_LIB_CTX *lib_ctx = OSSL_LIB_CTX_get0_global_default();
+    int nStatus = 0;
+    int nFailInfo = -2;
 
-    pSrvCTX = ossl_cmp_mock_srv_new( lib_ctx, NULL );
+    pSrvCTX = ossl_cmp_mock_srv_new( NULL, NULL );
     if( pSrvCTX == NULL ) return NULL;
 
     pCTX = OSSL_CMP_SRV_CTX_get0_cmp_ctx( pSrvCTX );
@@ -82,11 +82,10 @@ OSSL_CMP_SRV_CTX* setupServerCTX()
 
     ossl_cmp_mock_srv_set_checkAfterTime( pSrvCTX, 10 );
 
-    int nStatus = 0;
-    int nFailInfo = -1;
+
 
     ossl_cmp_mock_srv_set_statusInfo( pSrvCTX, nStatus, nFailInfo, "Status" );
-
+end :
     return pSrvCTX;
 #else
 

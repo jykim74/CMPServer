@@ -63,6 +63,8 @@ OSSL_CMP_SRV_CTX* setupServerCTX()
     pSrvCTX = ossl_cmp_mock_srv_new( NULL, NULL );
     if( pSrvCTX == NULL ) return NULL;
 
+    OSSL_CMP_SRV_CTX_set_grant_implicit_confirm( pSrvCTX, 1 );
+
     pCTX = OSSL_CMP_SRV_CTX_get0_cmp_ctx( pSrvCTX );
 
     pXRootCACert = d2i_X509( NULL, &pPosRootCACert, g_binRootCert.nLen );

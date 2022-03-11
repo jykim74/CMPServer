@@ -1,4 +1,4 @@
-# ca_cmp_srv
+# CMPServer
 
 RFC 4210 Certificate Management Protocol Server
 SCEP Server

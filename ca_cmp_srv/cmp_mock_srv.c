@@ -3,8 +3,6 @@
 #include "openssl/err.h"
 #include "openssl/cmperr.h"
 
-#ifdef OPENSSL_V3
-
 typedef struct
 {
     X509 *certOut;                      /* certificate to be returned in cp/ip/kup msg */
@@ -516,5 +514,3 @@ int ossl_cmp_mock_srv_set_checkAfterTime( OSSL_CMP_SRV_CTX *srv_ctx, int sec )
     ctx->checkAfterTime = sec;
     return 1;
 }
-
-#endif

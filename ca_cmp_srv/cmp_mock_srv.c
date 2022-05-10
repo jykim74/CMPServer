@@ -186,6 +186,30 @@ static OSSL_CMP_PKISI *process_rr(
     return OSSL_CMP_PKISI_dup( ctx->statusOut );
 }
 
+static void print_itavs(STACK_OF(OSSL_CMP_ITAV) *itavs)
+{
+    OSSL_CMP_ITAV *itav = NULL;
+    char buf[128];
+    int i, r;
+    int n = sk_OSSL_CMP_ITAV_num(itavs); /* itavs == NULL leads to 0 */
+
+    if (n == 0) {
+        printf("genp contains no ITAV\n");
+        return;
+    }
+
+    for (i = 0; i < n; i++) {
+        itav = sk_OSSL_CMP_ITAV_value(itavs, i);
+        r = OBJ_obj2txt(buf, 128, OSSL_CMP_ITAV_get0_type(itav), 0);
+        if (r < 0)
+            fprintf( stderr, "could not get ITAV details\n");
+        else if (r == 0)
+            printf("genp contains empty ITAV\n");
+        else
+            printf("genp contains ITAV of type: %s\n", buf);
+    }
+}
+
 static int process_genm(
         OSSL_CMP_SRV_CTX *srv_ctx,
         const OSSL_CMP_MSG *genm,
@@ -193,6 +217,10 @@ static int process_genm(
         STACK_OF(OSSL_CMP_ITAV) **out )
 {
     mock_srv_ctx *ctx = OSSL_CMP_SRV_CTX_get0_custom_ctx( srv_ctx );
+    if( in )
+    {
+        print_itavs( in );
+    }
 
     if( ctx == NULL || genm == NULL || in == NULL || out == NULL )
     {

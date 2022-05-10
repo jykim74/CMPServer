@@ -11,6 +11,7 @@
 
 #include "js_process.h"
 #include "cmp_srv.h"
+#include "cmp_mock_srv.h"
 
 #ifdef OPENSSL_V3
 #include "cmp_mock_srv.h"
@@ -82,10 +83,8 @@ OSSL_CMP_SRV_CTX* setupServerCTX()
     OSSL_CMP_CTX_set1_pkey( pCTX, pECAPriKey );
 
     ossl_cmp_mock_srv_set_checkAfterTime( pSrvCTX, 10 );
-
-
-
     ossl_cmp_mock_srv_set_statusInfo( pSrvCTX, nStatus, nFailInfo, "Status" );
+
 end :
     return pSrvCTX;
 }

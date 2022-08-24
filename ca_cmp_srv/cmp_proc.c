@@ -46,6 +46,7 @@ int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
     ASN1_OBJECT *pAType;
     ASN1_TYPE *pAValue = NULL;
     ASN1_INTEGER *pAInt = NULL;
+    ASN1_UTF8STRING *pText = NULL;
 
     memset( msg, 0x00, sizeof(msg));
 
@@ -82,7 +83,6 @@ int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
         goto end;
     }
 
-
 //    ret = OSSL_CMP_CTX_push0_genm_ITAV( pCTX, itav );
     ret = OSSL_CMP_CTX_push0_geninfo_ITAV( pCTX, itav );
     if( ret != 1 )
@@ -94,9 +94,16 @@ int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
 
     sprintf( msg, "keysize=2048" );
     OSSL_CMP_CTX_snprint_PKIStatus( pCTX, msg, sizeof(msg));
+
+
+    pText = ASN1_UTF8STRING_new();
+    ASN1_STRING_set0( pText, strdup( "Hello" ), 5 );
+
+    OSSL_CMP_set0_freeText( pCTX, pText );
+
     ret = 0;
  end :
-    if( pAValue ) ASN1_OBJECT_free( pAValue );
+ //   if( pAValue ) ASN1_TYPE_free( pAValue );
 
     return ret;
 }
@@ -539,7 +546,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     memset( &sDBUser, 0x00, sizeof(sDBUser));
 
     JS_BIN_encodeHex( pReq, &pReqHex );
-    if( pReqHex ) JS_LOG_write( JS_LOG_LEVEL_VERBOSE, "Req:%s", pReqHex );
+    if( pReqHex ) JS_LOG_write( JS_LOG_LEVEL_VERBOSE, "CMP Req: %s", pReqHex );
 
     pXCerts = sk_X509_new_null();
 
@@ -560,6 +567,8 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
 //    ASN1_OCTET_STRING *pASenderNonce = OSSL_CMP_HDR_get0_senderNonce( pHeader );
     ASN1_OCTET_STRING *pATransID = OSSL_CMP_HDR_get0_transactionID( pHeader );
     ASN1_OCTET_STRING *pASenderKID = OSSL_CMP_HDR_get0_senderKID( pHeader );
+
+
 
     /* KID 값은 RefCode 값이거나 클라이언트 인증서의 KeyIdentifier 값이 셋팅 됨 */
     if( pASenderKID == NULL )
@@ -641,8 +650,9 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     else if( nReqType == OSSL_CMP_PKIBODY_GENM )
     {
         printf( "Req : GENM\n");
+
         ret = procGENM( db, pCTX, pBody );
-        if( ret != 0 ) fprintf( stderr, "fail procGENM: %d\n", ret );
+//        if( ret != 0 ) fprintf( stderr, "fail procGENM: %d\n", ret );
     }
     else if( nReqType == OSSL_CMP_PKIBODY_CERTCONF )
     {
@@ -676,6 +686,18 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
 
     pRspMsg = OSSL_CMP_CTX_server_perform( pCTX, pReqMsg );
 
+    /*
+    if( nReqType == OSSL_CMP_PKIBODY_GENM )
+    {
+        ASN1_UTF8STRING *pText = NULL;
+        pText = ASN1_UTF8STRING_new();
+        ASN1_STRING_set0( pText, strdup( "Hello" ), 5 );
+
+        OSSL_CMP_set0_freeText( OSSL_CMP_MSG_get0_header( pRspMsg ), pText );
+    }
+    */
+
+
     OSSL_CMP_CTX_print_errors( pCTX );
 
     printf( "mock_server ret: %d\n", ret );
@@ -694,7 +716,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
         JS_BIN_set( pRsp, pOut, nOutLen );
         JS_BIN_encodeHex( pRsp, &pRspHex );
         printf( "Rsp[Len:%d] : %s\n", nOutLen, pRspHex );
-        if( pReqHex ) JS_LOG_write( JS_LOG_LEVEL_VERBOSE, "Rsp:%s", pRspHex );
+        if( pReqHex ) JS_LOG_write( JS_LOG_LEVEL_VERBOSE, "CMP Rsp: %s", pRspHex );
     }
 
     ret = 0;

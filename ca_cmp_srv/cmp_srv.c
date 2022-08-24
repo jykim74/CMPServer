@@ -341,8 +341,13 @@ int Init()
 
     g_nIssuerNum = atoi( value );
 
-    JS_LOG_open( "./log", "cmp", JS_LOG_TYPE_DAILY );
+    ret = JS_LOG_open( "./log", "cmp", JS_LOG_TYPE_DAILY );
+    if( ret != 0 )
+    {
+        fprintf( stderr, "fail to open log file\n" );
+    }
     JS_LOG_setLevel( JS_LOG_LEVEL_VERBOSE );
+    JS_LOG_write( JS_LOG_LEVEL_INFO, "Start CMP Server" );
 
     BIN binSSLCA = {0,0};
     BIN binSSLCert = {0,0};

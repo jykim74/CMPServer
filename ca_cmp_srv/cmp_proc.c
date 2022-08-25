@@ -27,7 +27,7 @@ int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
 {
     int ret = 0;
     STACK_OF(OSSL_CMP_ITAV) *pITAVs = pBody;
-    char msg[128];
+    const char *msg = "alg=RSA$keylen=2048$keygen=user";
 
     int nCnt = sk_OSSL_CMP_ITAV_num( pITAVs );
 
@@ -43,61 +43,12 @@ int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
         ASN1_TYPE_get_octetstring( pAType, sBuf, 1024 );
     }
 
-    ASN1_OBJECT *pAType;
-    ASN1_TYPE *pAValue = NULL;
-    ASN1_INTEGER *pAInt = NULL;
+
     ASN1_UTF8STRING *pText = NULL;
-
-    memset( msg, 0x00, sizeof(msg));
-
-    pAType = OBJ_nid2obj( NID_id_regInfo );
-    if( pAType == NULL )
-    {
-        ret = -1;
-        goto end;
-    }
-
-    pAInt = ASN1_INTEGER_new();
-    if( pAInt == NULL )
-    {
-        ret = -2;
-        goto end;
-    }
-
-    ASN1_INTEGER_set( pAInt, 256 );
-
-    pAValue = ASN1_TYPE_new();
-    if( !ASN1_INTEGER_set( pAInt, pAValue ) || pAValue == NULL )
-    {
-        ASN1_INTEGER_free( pAInt );
-        ret = -3;
-        goto end;
-    }
-
-    ASN1_TYPE_set( pAValue, V_ASN1_INTEGER, pAInt );
-
-    OSSL_CMP_ITAV *itav = OSSL_CMP_ITAV_create( pAType, pAValue );
-    if( itav == NULL )
-    {
-        ret = -4;
-        goto end;
-    }
-
-//    ret = OSSL_CMP_CTX_push0_genm_ITAV( pCTX, itav );
-    ret = OSSL_CMP_CTX_push0_geninfo_ITAV( pCTX, itav );
-    if( ret != 1 )
-    {
-        OSSL_CMP_ITAV_free( itav );
-        ret = -5;
-        goto end;
-    }
-
-    sprintf( msg, "keysize=2048" );
-    OSSL_CMP_CTX_snprint_PKIStatus( pCTX, msg, sizeof(msg));
 
 
     pText = ASN1_UTF8STRING_new();
-    ASN1_STRING_set0( pText, strdup( "Hello" ), 5 );
+    ASN1_STRING_set0( pText, msg, strlen(msg) );
 
     OSSL_CMP_set0_freeText( pCTX, pText );
 

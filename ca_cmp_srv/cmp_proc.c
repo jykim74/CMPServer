@@ -8,6 +8,7 @@
 #include "js_pki_tools.h"
 #include "js_log.h"
 #include "js_scep.h"
+#include "js_define.h"
 
 #include "cmp_mock_srv.h"
 #include "cmp_srv.h"
@@ -26,10 +27,16 @@ extern int      g_nIssuerNum;
 int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
 {
     int ret = 0;
+    JDB_Config  sConfig;
+    ASN1_UTF8STRING *pText = NULL;
+
     STACK_OF(OSSL_CMP_ITAV) *pITAVs = pBody;
-    const char *msg = "alg=RSA$keylen=2048$keygen=user";
+//    const char *msg = "alg=RSA$keylen=2048$keygen=user";
 
     int nCnt = sk_OSSL_CMP_ITAV_num( pITAVs );
+
+    memset( &sConfig, 0x00, sizeof(sConfig));
+    ret = JS_DB_getConfigByKind( db, JS_KIND_CMP_FREE_TEXT, &sConfig );
 
     for( int i=0; i < nCnt; i++ )
     {
@@ -43,18 +50,17 @@ int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
         ASN1_TYPE_get_octetstring( pAType, sBuf, 1024 );
     }
 
+    if( sConfig.pValue )
+    {
+        pText = ASN1_UTF8STRING_new();
+        ASN1_STRING_set0( pText, strdup( sConfig.pValue ), strlen(sConfig.pValue) );
 
-    ASN1_UTF8STRING *pText = NULL;
-
-
-    pText = ASN1_UTF8STRING_new();
-    ASN1_STRING_set0( pText, msg, strlen(msg) );
-
-    OSSL_CMP_set0_freeText( pCTX, pText );
+        OSSL_CMP_set0_freeText( pCTX, pText );
+    }
 
     ret = 0;
  end :
- //   if( pAValue ) ASN1_TYPE_free( pAValue );
+    JS_DB_resetConfig( &sConfig );
 
     return ret;
 }

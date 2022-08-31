@@ -47,7 +47,6 @@ int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
         OSSL_CMP_ITAV   *pITAV = sk_OSSL_CMP_ITAV_value(  pITAVs, i );
         ASN1_OBJECT *pAObj = OSSL_CMP_ITAV_get0_type( pITAV );
         ASN1_TYPE *pAType = OSSL_CMP_ITAV_get0_value( pITAV );
-        ASN1_TYPE_get_octetstring( pAType, sBuf, 1024 );
     }
 
     if( sConfig.pValue )

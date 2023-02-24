@@ -3,6 +3,9 @@ CONFIG += console
 CONFIG -= app_bundle
 CONFIG -= qt
 
+DEFINES += USE_CMP
+DEFINES += USE_SCEP
+
 SOURCES += \
         cmp_mock_srv.c \
         cmp_proc.c \

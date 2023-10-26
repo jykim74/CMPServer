@@ -70,7 +70,7 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
         uNotAfter = sDBCertProfile.nNotAfter - now_t;
     }
 
-    ret = JS_PKI_getReqInfo( pData, &sReqInfo, NULL );
+    ret = JS_PKI_getReqInfo( pData, &sReqInfo, 1, NULL );
     if( ret != 0 )
     {
         fprintf( stderr, "fail to parse request : %d\n", ret );
@@ -81,8 +81,9 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
     nKeyType = JS_PKI_getPubKeyType( &binPub );
     JS_PKI_getKeyIdentifier( &binPub, sKeyID );
 
-    nSeq = JS_DB_getSeq( db, "TB_CERT" );
-    nSeq++;
+//    nSeq = JS_DB_getSeq( db, "TB_CERT" );
+//    nSeq++;
+    nSeq = JS_DB_getNextVal( db, "TB_CERT" );
 
     sprintf( sSerial, "%d", nSeq );
 

@@ -194,8 +194,9 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
         JS_BIN_encodeHex( &binPub, &pPubKey );
 
 
-        int nSeq = JS_DB_getSeq( db, "TB_CERT" );
-        nSeq++;
+//        int nSeq = JS_DB_getSeq( db, "TB_CERT" );
+//        nSeq++;
+        int nSeq = JS_DB_getNextVal( db, "TB_CERT" );
 
         sprintf( sSerial, "%d", nSeq );
 
@@ -353,7 +354,8 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
         JS_BIN_encodeHex( &binPub, &pPubKey );
         JS_PKI_getKeyIdentifier( &binPub, sKeyID );
 
-        int nSeq = JS_DB_getSeq( db, "TB_CERT" );
+ //       int nSeq = JS_DB_getSeq( db, "TB_CERT" );
+        int nSeq = JS_DB_getLastVal( db, "TB_CERT" );
         sprintf( sSerial, "%d", nSeq );
 
         sprintf( sSubjectName, "%s", pDBCert->pSubjectDN );

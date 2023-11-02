@@ -122,7 +122,11 @@ int CMP_Service( JThreadInfo *pThInfo )
         goto end;
     }
 
+    JS_LOG_write( JS_LOG_LEVEL_VERBOSE, "RecvBin Len: %d", binReq.nLen );
+
     JS_HTTP_getMethodPath( pMethInfo, &nType, &pPath, &pParamList );
+
+    JS_LOG_write( JS_LOG_LEVEL_VERBOSE, "Path: %s", pPath );
 
     if( strcasecmp( pPath, "/PING") == 0 )
     {
@@ -141,6 +145,7 @@ int CMP_Service( JThreadInfo *pThInfo )
     if( ret != 0 )
     {
         fprintf( stderr, "fail to run ca(%d)\n", ret );
+        JS_LOG_write( JS_LOG_LEVEL_ERROR, "fail to run ca(%d)", ret );
         goto end;
     }
 
@@ -153,6 +158,7 @@ int CMP_Service( JThreadInfo *pThInfo )
     if( ret != 0 )
     {
         fprintf( stderr, "fail to send message(%d)\n", ret );
+        JS_LOG_write( JS_LOG_LEVEL_ERROR, "fail to send message(%d)", ret );
         goto end;
     }
     /* send response body */

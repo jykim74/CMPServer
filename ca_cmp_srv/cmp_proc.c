@@ -1,3 +1,4 @@
+#include "js_gen.h"
 #include "js_bin.h"
 #include "js_pki.h"
 #include "js_cmp.h"
@@ -657,7 +658,6 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
 
 
     OSSL_CMP_CTX_print_errors( pCTX );
-
     printf( "mock_server ret: %d\n", ret );
 
     if( pRspMsg == NULL )

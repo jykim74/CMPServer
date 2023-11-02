@@ -25,6 +25,7 @@ int     g_nCertProfileNum = -1;
 int     g_nIssuerNum = -1;
 int     g_nPort = 9000;
 int     g_nSSLPort = 9100;
+int     g_nLogLevel = JS_LOG_LEVEL_INFO;
 
 SSL_CTX     *g_pSSLCTX = NULL;
 
@@ -270,6 +271,22 @@ int Init()
         fprintf( stderr, "fail to open config file(%s)\n", g_sConfigPath );
         exit(0);
     }
+
+    value = JS_CFG_getValue( g_pEnvList, "LOG_LEVEL" );
+    if( value ) g_nLogLevel = atoi( value );
+
+    value = JS_CFG_getValue( g_pEnvList, "LOG_PATH" );
+    if( value )
+        ret = JS_LOG_open( value, "CMP", JS_LOG_TYPE_DAILY );
+    else
+        ret = JS_LOG_open( "log", "CMP", JS_LOG_TYPE_DAILY );
+
+    if( ret != 0 )
+    {
+        fprintf( stderr, "fail to open logfile:%d\n", ret );
+        exit(0);
+    }
+
 
     value = JS_CFG_getValue( g_pEnvList, "ROOTCA_CERT_PATH" );
     if( value == NULL )

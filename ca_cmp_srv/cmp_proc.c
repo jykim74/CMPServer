@@ -18,6 +18,7 @@
 extern BIN     g_binRootCert;
 extern BIN     g_binCACert;
 extern BIN     g_binCAPriKey;
+extern  JP11_CTX        *g_pP11CTX;
 
 extern BIN     g_binSignCert;
 extern BIN     g_binSignPri;
@@ -134,7 +135,10 @@ int makeCert( JDB_CertProfile *pDBCertProfile, JDB_ProfileExtList *pDBProfileExt
         pDBCurList = pDBCurList->pNext;
     }
 
-    ret = JS_PKI_makeCertificate( 0, pIssueCertInfo, pExtInfoList, nKeyType, &g_binCAPriKey, &g_binCACert, pCert );
+    if( g_pP11CTX )
+        ret = JS_PKI_makeCertificateByP11( 0, pIssueCertInfo, pExtInfoList, &g_binCAPriKey, &g_binCACert, g_pP11CTX, pCert );
+    else
+        ret = JS_PKI_makeCertificate( 0, pIssueCertInfo, pExtInfoList, nKeyType, &g_binCAPriKey, &g_binCACert, pCert );
 
 
     if( pExtInfoList ) JS_PKI_resetExtensionInfoList( &pExtInfoList );

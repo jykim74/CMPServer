@@ -1,3 +1,7 @@
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include "js_gen.h"
 #include "js_bin.h"
 #include "js_pki.h"
@@ -19,12 +23,60 @@ extern BIN     g_binRootCert;
 extern BIN     g_binCACert;
 extern BIN     g_binCAPriKey;
 extern  JP11_CTX        *g_pP11CTX;
+extern int g_nMsgDump;
 
 extern BIN     g_binSignCert;
 extern BIN     g_binSignPri;
 
 extern int      g_nCertProfileNum;
 extern int      g_nIssuerNum;
+
+int msgDump( int nIsReq, int nReqType, const BIN *pMsg )
+{
+    char        sSavePath[1024];
+    const char *pName = NULL;
+
+    if( pMsg == NULL || pMsg->nLen <= 0 ) return -1;
+
+    if( nReqType == OSSL_CMP_PKIBODY_IR )
+        pName = "ir";
+    else if( nReqType == OSSL_CMP_PKIBODY_CR )
+        pName = "cr";
+    else if( nReqType == OSSL_CMP_PKIBODY_KUR )
+        pName = "kur";
+    else if( nReqType == OSSL_CMP_PKIBODY_RR )
+        pName = "rr";
+    else if( nReqType == OSSL_CMP_PKIBODY_GENM )
+        pName = "genm";
+    else if( nReqType == OSSL_CMP_PKIBODY_CERTCONF )
+        pName = "certconf";
+    else
+    {
+        LE( "Invalid ReqType: %d", nReqType );
+        return -1;
+    }
+
+    if( JS_UTIL_isFolderExist( "dump" ) == 0 )
+    {
+#ifdef WIN32
+        mkdir( "dump" );
+#else
+        mkdir( "dump", 0755 );
+#endif
+    }
+
+    if( nIsReq )
+    {
+        sprintf( sSavePath, "dump/cmp_req_%d_%d.bin", time(NULL), getpid() );
+    }
+    else
+    {
+        sprintf( sSavePath, "dump/cmp_rsp_%d_%d.bin", time(NULL), getpid());
+    }
+
+
+    return JS_BIN_fileWrite( pMsg, sSavePath );
+}
 
 int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
 {
@@ -521,7 +573,6 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
         goto end;
     }
 
-
     int nReqType = OSSL_CMP_MSG_get_bodytype( pReqMsg );
     pHeader = OSSL_CMP_MSG_get0_header( pReqMsg );
     void *pBody = OSSL_CMP_MSG_get0_body( pReqMsg );
@@ -531,7 +582,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     ASN1_OCTET_STRING *pATransID = OSSL_CMP_HDR_get0_transactionID( pHeader );
     ASN1_OCTET_STRING *pASenderKID = OSSL_CMP_HDR_get0_senderKID( pHeader );
 
-
+    if( g_nMsgDump ) msgDump( 1, nReqType, pReq );
 
     /* KID 값은 RefCode 값이거나 클라이언트 인증서의 KeyIdentifier 값이 셋팅 됨 */
     if( pASenderKID == NULL )
@@ -681,6 +732,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
         if( pReqHex ) JS_LOG_write( JS_LOG_LEVEL_VERBOSE, "CMP Rsp: %s", pRspHex );
     }
 
+    if( g_nMsgDump ) msgDump( 0, nReqType, pRsp );
     ret = 0;
 
 end :

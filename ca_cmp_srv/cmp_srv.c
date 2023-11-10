@@ -22,6 +22,7 @@ BIN     g_binRootCert = {0,0};
 BIN     g_binCACert = {0,0};
 BIN     g_binCAPriKey = {0,0};
 JP11_CTX        *g_pP11CTX = NULL;
+int     g_nMsgDump = 0;
 
 int     g_nCertProfileNum = -1;
 int     g_nIssuerNum = -1;
@@ -453,6 +454,13 @@ int Init()
     {
         fprintf( stderr, "fail to open logfile:%d\n", ret );
         exit(0);
+    }
+
+    value = JS_CFG_getValue( g_pEnvList, "CMP_MSG_DUMP" );
+    if( value )
+    {
+        if( strcasecmp( value, "yes" ) == 0 )
+            g_nMsgDump = 1;
     }
 
 

@@ -3,6 +3,7 @@
 
 #include "openssl/cmp.h"
 
+#include "js_gen.h"
 #include "js_pki.h"
 #include "js_http.h"
 #include "js_db.h"
@@ -34,6 +35,7 @@ SSL_CTX     *g_pSSLCTX = NULL;
 
 JEnvList    *g_pEnvList = NULL;
 
+int     g_nConfigDB = 0;
 const char* g_dbPath = NULL;
 static char g_sBuildInfo[1024];
 
@@ -370,6 +372,71 @@ int loginHSM()
     return 0;
 }
 
+int readPriKeyDB( sqlite3 *db )
+{
+    int ret = 0;
+    const char *value = NULL;
+    JDB_KeyPair sKeyPair;
+
+    memset( &sKeyPair, 0x00, sizeof(sKeyPair));
+
+    value = JS_CFG_getValue( g_pEnvList, "CA_PRIKEY_NUM" );
+    if( value == NULL )
+    {
+        fprintf( stderr, "You have to set 'CA_PRIKEY_NUM'" );
+        exit(0);
+    }
+
+    ret = JS_DB_getKeyPair(db, atoi(value), &sKeyPair );
+    if( ret != 1 )
+    {
+        fprintf( stderr, "There is no key pair: %d\r\n", atoi(value));
+        exit(0);
+    }
+
+    // 암호화 경우 복호화 필요함
+    value = JS_CFG_getValue( g_pEnvList, "CA_PRIKEY_ENC" );
+
+    if( value && strcasecmp( value, "NO" ) == 0 )
+    {
+        JS_BIN_decodeHex( sKeyPair.pPrivate, &g_binCAPriKey );
+
+        if( ret <= 0 )
+        {
+            fprintf( stderr, "fail to read private key file(%s:%d)\n", value, ret );
+            exit( 0 );
+        }
+    }
+    else
+    {
+        BIN binEnc = {0,0};
+        const char *pPasswd = NULL;
+
+        pPasswd = JS_CFG_getValue( g_pEnvList, "CA_PRIKEY_PASSWD" );
+        if( pPasswd == NULL )
+        {
+            fprintf( stderr, "You have to set 'CA_PRIKEY_PASSWD'\n" );
+            exit(0);
+        }
+
+        JS_BIN_decodeHex( sKeyPair.pPrivate, &binEnc );
+
+        ret = JS_PKI_decryptPrivateKey( pPasswd, &binEnc, NULL, &g_binCAPriKey );
+        if( ret != 0 )
+        {
+            fprintf( stderr, "invalid password (%d)\n", ret );
+            exit(0);
+        }
+
+        JS_BIN_reset( &binEnc );
+    }
+
+    JS_DB_resetKeyPair( &sKeyPair );
+
+    return 0;
+}
+
+
 int readPriKey()
 {
     int ret = 0;
@@ -429,17 +496,10 @@ int readPriKey()
 }
 
 
-int Init()
+int Init( sqlite3* db )
 {
     int ret = 0;
     const char *value = NULL;
-
-    ret = JS_CFG_readConfig( g_sConfigPath, &g_pEnvList );
-    if( ret != 0 )
-    {
-        fprintf( stderr, "fail to open config file(%s)\n", g_sConfigPath );
-        exit(0);
-    }
 
     value = JS_CFG_getValue( g_pEnvList, "LOG_LEVEL" );
     if( value ) g_nLogLevel = atoi( value );
@@ -463,34 +523,65 @@ int Init()
             g_nMsgDump = 1;
     }
 
-
-    value = JS_CFG_getValue( g_pEnvList, "ROOTCA_CERT_PATH" );
-    if( value == NULL )
+    if( g_nConfigDB == 1 )
     {
-        fprintf( stderr, "You have to set 'ROOTCA_CERT_PATH'\n" );
-        exit(0);
+
+        JDB_Cert sCert;
+        memset( &sCert, 0x00, sizeof(sCert));
+
+        value = JS_CFG_getValue( g_pEnvList, "ROOTCA_CERT_NUM" );
+        if( value == NULL )
+        {
+            fprintf( stderr, "You have to set 'ROOTCA_CERT_NUM'\n" );
+            exit(0);
+        }
+
+        JS_DB_getCert( db, atoi(value), &sCert );
+        ret = JS_BIN_decodeHex( sCert.pCert, &g_binRootCert );
+
+        JS_DB_resetCert( &sCert );
+
+        value = JS_CFG_getValue( g_pEnvList, "CA_CERT_NUM" );
+        if( value == NULL )
+        {
+            fprintf( stderr, "You have to set 'CA_CERT_NUM'\n" );
+            exit(0);
+        }
+
+        JS_DB_getCert( db, atoi(value), &sCert );
+        ret = JS_BIN_decodeHex( sCert.pCert, &g_binCACert );
+
+        JS_DB_resetCert( &sCert );
     }
-
-    ret = JS_BIN_fileReadBER( value, &g_binRootCert );
-    if( ret <= 0 )
+    else
     {
-        fprintf( stderr, "fail to open rootca cert(%s)\n", value );
-        exit(0);
-    }
+        value = JS_CFG_getValue( g_pEnvList, "ROOTCA_CERT_PATH" );
+        if( value == NULL )
+        {
+            fprintf( stderr, "You have to set 'ROOTCA_CERT_PATH'\n" );
+            exit(0);
+        }
 
+        ret = JS_BIN_fileReadBER( value, &g_binRootCert );
+        if( ret <= 0 )
+        {
+            fprintf( stderr, "fail to open rootca cert(%s)\n", value );
+            exit(0);
+        }
 
-    value = JS_CFG_getValue( g_pEnvList, "CA_CERT_PATH" );
-    if( value == NULL )
-    {
-        fprintf( stderr, "You have to set 'CA_CERT_PATH'\n" );
-        exit(0);
-    }
+        value = JS_CFG_getValue( g_pEnvList, "CA_CERT_PATH" );
+        if( value == NULL )
+        {
+            fprintf( stderr, "You have to set 'CA_CERT_PATH'\n" );
+            exit(0);
+        }
 
-    ret = JS_BIN_fileReadBER( value, &g_binCACert );
-    if( ret <= 0 )
-    {
-        fprintf( stderr, "fail to open ca cert(%s)\n", value );
-        exit(0);
+        ret = JS_BIN_fileReadBER( value, &g_binCACert );
+        if( ret <= 0 )
+        {
+            fprintf( stderr, "fail to open ca cert(%s)\n", value );
+            exit(0);
+        }
     }
 
     value = JS_CFG_getValue( g_pEnvList, "CA_HSM_USE" );
@@ -505,7 +596,11 @@ int Init()
     }
     else
     {
-        ret = readPriKey();
+        if( g_nConfigDB == 1 )
+            ret = readPriKeyDB( db );
+        else
+            ret = readPriKey();
+
         if( ret != 0 )
         {
             fprintf( stderr, "fail to read private key:%d\n", ret );
@@ -513,14 +608,22 @@ int Init()
         }
     }
 
-    value = JS_CFG_getValue( g_pEnvList, "DB_PATH" );
-    if( value == NULL )
+    if( g_dbPath == NULL || g_nConfigDB == 0 )
     {
-        fprintf( stderr, "You have to set 'DB_PATH'\n" );
-        exit(0);
-    }
+        value = JS_CFG_getValue( g_pEnvList, "DB_PATH" );
+        if( value == NULL )
+        {
+            fprintf( stderr, "You have to set 'DB_PATH'\n" );
+            exit(0);
+        }
 
-    g_dbPath = JS_strdup( value );
+        g_dbPath = JS_strdup( value );
+        if( JS_UTIL_isFileExist( g_dbPath ) == 0 )
+        {
+            fprintf( stderr, "The data file is no exist[%s]\n", g_dbPath );
+            exit(0);
+        }
+    }
 
     value = JS_CFG_getValue( g_pEnvList, "CERT_PROFILE" );
     if( value == NULL )
@@ -619,12 +722,15 @@ void printUsage()
     printf( "[Options]\n" );
     printf( "-v         : Verbose on(%d)\n", g_nVerbose );
     printf( "-c config : set config file(%s)\n", g_sConfigPath );
+    printf( "-d dbfile  : Use DB config(%d)\n", g_nConfigDB );
     printf( "-h         : Print this message\n" );
 }
 
 int main( int argc, char *argv[] )
 {
+    int     ret = 0;
     int     nOpt = 0;
+    sqlite3*    db = NULL;
 
     sprintf( g_sConfigPath, "%s", "../ca_cmp.cfg" );
 
@@ -642,10 +748,59 @@ int main( int argc, char *argv[] )
         case 'c' :
             sprintf( g_sConfigPath, "%s", optarg );
             break;
+
+        case 'd' :
+            g_dbPath = JS_strdup( optarg );
+            g_nConfigDB = 1;
+            break;
         }
     }
 
-    Init();
+    if( g_nConfigDB == 1 )
+    {
+        JDB_ConfigList *pConfigList = NULL;
+
+        if( JS_UTIL_isFileExist( g_dbPath ) == 0 )
+        {
+            fprintf( stderr, "The data file is no exist[%s]\n", g_dbPath );
+            exit(0);
+        }
+
+        db = JS_DB_open( g_dbPath );
+        if( db == NULL )
+        {
+            fprintf( stderr, "fail to open db file(%s)\n", g_dbPath );
+            exit(0);
+        }
+
+        ret = JS_DB_getConfigListByKind( db, JS_GEN_KIND_CMP_SRV, &pConfigList );
+
+        ret = JS_CFG_readConfigFromDB( pConfigList, &g_pEnvList );
+        if( ret != 0 )
+        {
+            fprintf( stderr, "fail to open config file(%s)\n", g_sConfigPath );
+            exit(0);
+        }
+
+
+        if( pConfigList ) JS_DB_resetConfigList( &pConfigList );
+    }
+    else
+    {
+        ret = JS_CFG_readConfig( g_sConfigPath, &g_pEnvList );
+        if( ret != 0 )
+        {
+            fprintf( stderr, "fail to open config file(%s)\n", g_sConfigPath );
+            exit(0);
+        }
+    }
+
+    Init( db );
+
+    if( g_nConfigDB == 1 )
+    {
+        if( db ) JS_DB_close( db );
+    }
 
     JS_THD_logInit( "./log", "net", 2 );
     JS_THD_registerService( "JS_CMP", NULL, g_nPort, 4, NULL, CMP_Service );

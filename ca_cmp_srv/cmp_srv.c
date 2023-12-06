@@ -798,8 +798,9 @@ int main( int argc, char *argv[] )
     }
 
     JS_THD_logInit( "./log", "net", 2 );
-    JS_THD_registerService( "JS_CMP", NULL, g_nPort, 4, NULL, CMP_Service );
-    JS_THD_registerService( "JS_CMP_SSL", NULL, g_nSSLPort, 4, NULL, CMP_SSL_Service );
+    JS_THD_registerService( "JS_CMP", NULL, g_nPort, 4, CMP_Service );
+    JS_THD_registerService( "JS_CMP_SSL", NULL, g_nSSLPort, 4, CMP_SSL_Service );
+    JS_THD_registerAdmin( NULL, g_nPort+10 );
     JS_THD_serviceStartAll();
 
 

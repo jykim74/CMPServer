@@ -716,6 +716,28 @@ void printUsage()
     printf( "-h         : Print this message\n" );
 }
 
+#if !defined WIN32 && defined USE_PRC
+static int MainProcessInit()
+{
+    return 0;
+}
+
+static int MainProcessTerm()
+{
+    return 0;
+}
+
+static int ChildProcessInit()
+{
+    return 0;
+}
+
+static int ChildProcessTerm()
+{
+    return 0;
+}
+#endif
+
 int main( int argc, char *argv[] )
 {
     int     ret = 0;
@@ -797,12 +819,32 @@ int main( int argc, char *argv[] )
         if( db ) JS_DB_close( db );
     }
 
+#if !defined WIN32 && defined USE_PRC
+    JProcInit sProcInit;
+
+    memset( &sProcInit, 0x00, sizeof(JProcInit));
+
+    sProcInit.nCreateNum = 1;
+    sProcInit.ParentInitFunction = MainProcessInit;
+    sProcInit.ParemtTermFunction = MainProcessTerm;
+    sProcInit.ChidInitFunction = ChildProcessInit;
+    sProcInit.ChildTermFunction = ChildProcessTerm;
+
+    JS_PRC_initRegister( &sProcInit );
+    JS_PRC_register( "JS_CMP", NULL, g_nPort, 4, CMP_Service );
+    JS_PRC_register( "JS_CMP_SSL", NULL, g_nSSLPort, 4, CMP_SSL_Service );
+    JS_PRC_registerAdmin( NULL, g_nPort + 10 );
+
+    JS_PRC_start();
+    JS_PRC_detach();
+#else
+
     JS_THD_logInit( "./log", "net", 2 );
     JS_THD_registerService( "JS_CMP", NULL, g_nPort, 4, CMP_Service );
     JS_THD_registerService( "JS_CMP_SSL", NULL, g_nSSLPort, 4, CMP_SSL_Service );
     JS_THD_registerAdmin( NULL, g_nPort+10 );
     JS_THD_serviceStartAll();
-
+#endif
 
     return 0;
 }

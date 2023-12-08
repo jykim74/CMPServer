@@ -27,8 +27,8 @@ int     g_nMsgDump = 0;
 
 int     g_nCertProfileNum = -1;
 int     g_nIssuerNum = -1;
-int     g_nPort = 9000;
-int     g_nSSLPort = 9100;
+int     g_nPort = JS_CMP_PORT;
+int     g_nSSLPort = JS_CMP_SSL_PORT;
 int     g_nLogLevel = JS_LOG_LEVEL_INFO;
 
 SSL_CTX     *g_pSSLCTX = NULL;

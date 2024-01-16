@@ -120,6 +120,8 @@ int CMP_Service( JThreadInfo *pThInfo )
         goto end;
     }
 
+    LV( "DB open successfully(%s)", g_dbPath );
+
     ret = JS_HTTP_recvBin( pThInfo->nSockFd, &pMethInfo, &pHeaderList, &binReq );
     if( ret != 0 )
     {
@@ -127,11 +129,9 @@ int CMP_Service( JThreadInfo *pThInfo )
         goto end;
     }
 
-    JS_LOG_write( JS_LOG_LEVEL_VERBOSE, "RecvBin Len: %d", binReq.nLen );
-
+    LV( "RecvBin Len: %d", binReq.nLen );
     JS_HTTP_getMethodPath( pMethInfo, &nType, &pPath, &pParamList );
-
-    JS_LOG_write( JS_LOG_LEVEL_VERBOSE, "Path: %s", pPath );
+    LV( "Path: %s", pPath );
 
     if( strcasecmp( pPath, "/PING") == 0 )
     {
@@ -220,7 +220,9 @@ int CMP_SSL_Service( JThreadInfo *pThInfo )
         goto end;
     }
 
+    LV( "RecvBin Len: %d", binReq.nLen );
     JS_HTTP_getMethodPath( pMethInfo, &nType, &pPath, &pParamList );
+    LV( "Path: %s", pPath );
 
     if( strcasecmp( pPath, "/PING") == 0 )
     {

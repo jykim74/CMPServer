@@ -9,6 +9,7 @@
 #include "js_log.h"
 #include "js_pkcs7.h"
 #include "js_scep.h"
+#include "js_log.h"
 
 #include "cmp_srv.h"
 
@@ -73,7 +74,7 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
     ret = JS_PKI_getReqInfo( pData, &sReqInfo, 1, NULL );
     if( ret != 0 )
     {
-        fprintf( stderr, "fail to parse request : %d\n", ret );
+        LE( "fail to parse request : %d", ret );
         goto end;
     }
 
@@ -100,7 +101,7 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
     ret = makeCert( &sDBCertProfile, pDBProfileExtList, &sIssueCertInfo, nKeyType, &binNewCert );
     if( ret != 0 )
     {
-        fprintf( stderr, "fail to make certificate : %d\n", ret );
+        LE( "fail to make certificate : %d", ret );
         goto end;
     }
 
@@ -130,13 +131,13 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
     ret = JS_SCEP_genSignedDataWithoutSign( &binNewCert, NULL, pSignedData );
     if( ret != 0 )
     {
-        fprintf( stderr, "fail to make response signeddata : %d\n", ret );
+        LE( "fail to make response signeddata : %d", ret );
         goto end;
     }
 
 //    JS_BIN_fileWrite( pSignedData, "D:/jsca/rep_signeddata.ber" );
 //    JS_BIN_fileWrite( &binNewCert, "D:/jsca/new_cert.crt" );
-    fprintf( stdout, "SignedData Length : %d\n", pSignedData->nLen );
+    LI( "SignedData Length : %d", pSignedData->nLen );
 
 end :
     JS_PKI_resetReqInfo( &sReqInfo );
@@ -196,14 +197,14 @@ int workPKIOperation( sqlite3* db, const BIN *pPKIReq, BIN *pCertRsp )
     ret = JS_SCEP_verifyParseSignedData( pPKIReq, &nType, &binSignCert, &binSenderNonce, &pTransID, &binData );
     if( ret != 0 )
     {
-        fprintf( stderr, "fail to veriyf signeddata : %d\n", ret );
+        LE( "fail to veriyf signeddata : %d", ret );
         goto end;
     }
 
     ret = JS_PKCS7_makeDevelopedData( &binData, &g_binCAPriKey, &g_binCACert, &binDevData );
     if( ret != 0 )
     {
-        fprintf( stderr, "fail to develop data : %d\n", ret );
+        LE( "fail to develop data : %d", ret );
         goto end;
     }
 
@@ -225,7 +226,7 @@ int workPKIOperation( sqlite3* db, const BIN *pPKIReq, BIN *pCertRsp )
     }
     else
     {
-        fprintf( stderr, "Invalid request type : %d\n", nType );
+        LE( "Invalid request type : %d", nType );
         ret = -1;
         goto end;
     }
@@ -268,7 +269,7 @@ int procSCEP( sqlite3* db, const JNameValList *pParamList, const BIN *pReq, BIN 
 
     if( pOper == NULL )
     {
-        fprintf( stderr, "There is no operation\n" );
+        LE( "There is no operation" );
         return -1;
     }
 
@@ -287,7 +288,7 @@ int procSCEP( sqlite3* db, const JNameValList *pParamList, const BIN *pReq, BIN 
     }
     else
     {
-        fprintf( stderr, "invalid operation : %s\n", pOper );
+        LE( "invalid operation : %s", pOper );
         return -1;
     }
 

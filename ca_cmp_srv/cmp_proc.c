@@ -207,6 +207,12 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
     JDB_CertProfile sDBCertProfile;
     JDB_ProfileExtList *pDBProfileExtList = NULL;
 
+    if( pDBUser == NULL )
+    {
+        LE( "DBUser is null" );
+        return -1;
+    }
+
     memset( &sDBCertProfile, 0x00, sizeof(sDBCertProfile));
     JS_DB_getCertProfile( db, g_nCertProfileNum, &sDBCertProfile );
     JS_DB_getCertProfileExtList( db, sDBCertProfile.nNum, &pDBProfileExtList );
@@ -312,6 +318,17 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
                        "" );
 
         ret = JS_DB_addCert( db, &sDBNewCert );
+        if( ret == 0 )
+        {
+            if( pDBUser->pAuthCode )
+            {
+                JS_free( pDBUser->pAuthCode );
+                pDBUser->pAuthCode = NULL;
+            }
+
+            pDBUser->nStatus = JS_USER_STATUS_ISSUED;
+            JS_DB_modUser( db, pDBUser->nNum, pDBUser );
+        }
 
         JS_BIN_reset( &binPub );
         JS_PKI_resetIssueCertInfo( &sIssueCertInfo );
@@ -553,7 +570,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
 
     if( pSrvCTX == NULL || pCTX == NULL )
     {
-        fprintf(stderr, "SrvCTX or CTX is null\n" );
+        LE( "SrvCTX or CTX is null" );
         return -1;
     }
 
@@ -568,7 +585,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     pReqMsg = d2i_OSSL_CMP_MSG( NULL, &pPosReq, pReq->nLen );
     if( pReqMsg == NULL )
     {
-        fprintf( stderr, "ReqMsg is null\n" );
+        LE( "ReqMsg is null" );
         ret = -1;
         goto end;
     }
@@ -587,7 +604,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     /* KID 값은 RefCode 값이거나 클라이언트 인증서의 KeyIdentifier 값이 셋팅 됨 */
     if( pASenderKID == NULL )
     {
-        fprintf( stderr, "There is no SendKID value\n" );
+        LE( "There is no SendKID value" );
         ret = -1;
         goto end;
     }
@@ -629,12 +646,12 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
 
     if( nReqType == OSSL_CMP_PKIBODY_IR || nReqType == OSSL_CMP_PKIBODY_CR )
     {
-        printf( "Req : IR or CR\n" );
+        LV( "Req : IR or CR" );
         BIN binNewCert = {0,0};
         X509 *pXNewCert = NULL;
         const unsigned char *pPosNewCert = NULL;
         ret = procIR( db, pCTX, &sDBUser, pBody, &binNewCert );
-        if( ret != 0 ) fprintf( stderr, "fail procIR: %d\n", ret );
+        if( ret != 0 ) LE( "fail procIR: %d", ret );
 
         pPosNewCert = binNewCert.pVal;
         pXNewCert = d2i_X509( NULL, &pPosNewCert, binNewCert.nLen );
@@ -642,13 +659,13 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     }
     else if( nReqType == OSSL_CMP_PKIBODY_KUR )
     {
-        printf( "Req : KUR\n" );
+        LV( "Req : KUR" );
         BIN binNewCert = {0,0};
         X509 *pXNewCert = NULL;
         const unsigned char *pPosNewCert = NULL;
 
         ret = procKUR( db, pCTX, &sDBCert, pBody, &binNewCert );
-        if( ret != 0 ) fprintf( stderr, "fail procKUR: %d\n", ret );
+        if( ret != 0 ) LE( "fail procKUR: %d", ret );
 
         pPosNewCert = binNewCert.pVal;
         pXNewCert = d2i_X509( NULL, &pPosNewCert, binNewCert.nLen );
@@ -656,25 +673,25 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     }
     else if( nReqType == OSSL_CMP_PKIBODY_RR )
     {
-        printf( "Req : RR\n" );
+        LV( "Req : RR" );
         ret = procRR( db, pCTX, &sDBCert, pBody );
-        if( ret != 0 ) fprintf( stderr, "fail procRR: %d\n", ret );
+        if( ret != 0 ) LE( "fail procRR: %d", ret );
         ossl_cmp_mock_srv_set1_certOut( pSrvCTX, pXSignCert );
     }
     else if( nReqType == OSSL_CMP_PKIBODY_GENM )
     {
-        printf( "Req : GENM\n");
+        LV( "Req : GENM");
 
         ret = procGENM( db, pCTX, pBody );
-//        if( ret != 0 ) fprintf( stderr, "fail procGENM: %d\n", ret );
+        if( ret != 0 ) LE( "fail procGENM: %d", ret );
     }
     else if( nReqType == OSSL_CMP_PKIBODY_CERTCONF )
     {
-        printf( "Req : CERTCONF\n" );
+        LV( "Req : CERTCONF" );
         BIN binCert = {0,0};
         const unsigned char *pPosCert = NULL;
         ret = procCertConf( db, pCTX, &sDBUser, &sDBCert, pBody, &binCert );
-        if( ret != 0 ) fprintf( stderr, "fail procCertConf: %d\n", ret );
+        if( ret != 0 ) LE( "fail procCertConf: %d", ret );
 
         pPosCert = binCert.pVal;
         X509 *pXCert = d2i_X509( NULL, &pPosCert, binCert.nLen );
@@ -692,7 +709,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     ret = OSSL_CMP_CTX_set_transfer_cb_arg( pCTX, pSrvCTX );
     if( ret != 1 )
     {
-        fprintf( stderr, "OSSL_CMP_CTX_set_transfer_cb_arg fail:%d\n", ret );
+        LE( "OSSL_CMP_CTX_set_transfer_cb_arg fail:%d", ret );
         ret = -1;
         goto end;
     }
@@ -713,12 +730,11 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
 
 
     OSSL_CMP_CTX_print_errors( pCTX );
-    printf( "mock_server ret: %d\n", ret );
+    LV( "mock_server ret: %d", ret );
 
     if( pRspMsg == NULL )
     {
-        fprintf( stderr, "Rsp is null\n" );
-        JS_LOG_write( JS_LOG_LEVEL_ERROR, "Rsp is null" );
+        LE( "Rsp is null" );
         ret = -1;
         goto end;
     }
@@ -728,8 +744,8 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
     {
         JS_BIN_set( pRsp, pOut, nOutLen );
         JS_BIN_encodeHex( pRsp, &pRspHex );
-        printf( "Rsp[Len:%d] : %s\n", nOutLen, pRspHex );
-        if( pReqHex ) JS_LOG_write( JS_LOG_LEVEL_VERBOSE, "CMP Rsp: %s", pRspHex );
+        LV( "Rsp[Len:%d] : %s", nOutLen, pRspHex );
+        if( pReqHex ) LV( "CMP Rsp: %s", pRspHex );
     }
 
     if( g_nMsgDump ) msgDump( 0, nReqType, pRsp );

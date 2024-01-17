@@ -3,6 +3,8 @@
 #include "openssl/err.h"
 #include "openssl/cmperr.h"
 
+#include "js_log.h"
+
 typedef struct
 {
     X509 *certOut;                      /* certificate to be returned in cp/ip/kup msg */
@@ -194,7 +196,7 @@ static void print_itavs(STACK_OF(OSSL_CMP_ITAV) *itavs)
     int n = sk_OSSL_CMP_ITAV_num(itavs); /* itavs == NULL leads to 0 */
 
     if (n == 0) {
-        printf("genp contains no ITAV\n");
+        LV("genp contains no ITAV");
         return;
     }
 
@@ -202,11 +204,11 @@ static void print_itavs(STACK_OF(OSSL_CMP_ITAV) *itavs)
         itav = sk_OSSL_CMP_ITAV_value(itavs, i);
         r = OBJ_obj2txt(buf, 128, OSSL_CMP_ITAV_get0_type(itav), 0);
         if (r < 0)
-            fprintf( stderr, "could not get ITAV details\n");
+            LE( "could not get ITAV details");
         else if (r == 0)
-            printf("genp contains empty ITAV\n");
+            LV("genp contains empty ITAV");
         else
-            printf("genp contains ITAV of type: %s\n", buf);
+            LV("genp contains ITAV of type: %s", buf);
     }
 }
 
@@ -257,39 +259,38 @@ static void process_error(
         return;
     }
 
-    fprintf( stderr, "mock server received error:\n" );
+    LE( "mock server received error" );
 
     if( statusInfo == NULL )
     {
-        fprintf( stderr, "pkiStatusInfo absent\n" );
+        LE( "pkiStatusInfo absent" );
     }
     else
     {
         sibuf = OSSL_CMP_CTX_snprint_PKIStatus( statusInfo, buf, sizeof(buf));
-        fprintf( stderr, "pkiStatusInfo: %s\n", sibuf != NULL ? sibuf: "<invalid>" );
+        LE( "pkiStatusInfo: %s", sibuf != NULL ? sibuf: "<invalid>" );
     }
 
     if( errorCode == NULL )
-        fprintf( stderr, "errorCode absent\n" );
+        LE( "errorCode absent" );
     else
-        fprintf( stderr, "errorCode: %ld\n", ASN1_INTEGER_get(errorCode));
+        LE( "errorCode: %ld", ASN1_INTEGER_get(errorCode));
 
     if( sk_ASN1_UTF8STRING_num( errorDetails ) <= 0 )
     {
-        fprintf( stderr, "errorDetails absent\n" );
+        LE( "errorDetails absent" );
     }
     else
     {
-        fprintf( stderr, "errorDetail: " );
+        LE( "errorDetail: " );
         for( i = 0; i < sk_ASN1_UTF8STRING_num( errorDetails ); i++ )
         {
-            if( i > 0 ) fprintf( stderr, ", " );
+            if( i > 0 ) LE( " " );
 
-            fprintf( stderr, "\"" );
-            fprintf( stderr, sk_ASN1_UTF8STRING_value(errorDetails, i));
-            fprintf( stderr, "\"" );
+            LE( "\" %s \"", sk_ASN1_UTF8STRING_value(errorDetails, i));
         }
-        fprintf( stderr, "\n" );
+
+        LE( " " );
     }
 }
 

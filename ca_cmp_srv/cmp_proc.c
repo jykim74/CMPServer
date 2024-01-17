@@ -112,6 +112,8 @@ int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
     }
 
     ret = 0;
+    JS_DB_addAuditInfo( db, JS_GEN_KIND_CMP_SRV, JS_GEN_OP_CMP_GENM, "Admin", NULL );
+
  end :
     JS_DB_resetConfig( &sConfig );
 
@@ -328,6 +330,7 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
 
             pDBUser->nStatus = JS_USER_STATUS_ISSUED;
             JS_DB_modUser( db, pDBUser->nNum, pDBUser );
+            JS_DB_addAuditInfo( db, JS_GEN_KIND_CMP_SRV, JS_GEN_OP_CMP_IR, "Admin", NULL );
         }
 
         JS_BIN_reset( &binPub );
@@ -370,6 +373,7 @@ int procRR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody )
 
     JS_DB_addRevoked( db, &sDBRevoked );
     JS_DB_changeCertStatus( db, pDBCert->nNum, 2 );
+    JS_DB_addAuditInfo( db, JS_GEN_KIND_CMP_SRV, JS_GEN_OP_CMP_RR, "Admin", NULL );
 
     JS_DB_resetRevoked( &sDBRevoked );
     JS_BIN_reset( &binData );
@@ -487,6 +491,10 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
                        "" );
 
         ret = JS_DB_addCert( db, &sDBNewCert );
+        if( ret == 0 )
+        {
+            JS_DB_addAuditInfo( db, JS_GEN_KIND_CMP_SRV, JS_GEN_OP_CMP_KUR, "Admin", NULL );
+        }
 
         JS_BIN_reset( &binPub );
         JS_PKI_resetIssueCertInfo( &sIssueCertInfo );
@@ -540,6 +548,7 @@ int procCertConf( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, JDB_Cert *
     JS_BIN_decodeHex( sDBLatestCert.pCert, pCert );
 
     JS_DB_resetCert( &sDBLatestCert );
+    JS_DB_addAuditInfo( db, JS_GEN_KIND_CMP_SRV, JS_GEN_OP_CMP_CERT_CONF, "Admin", NULL );
 
     return 0;
 }

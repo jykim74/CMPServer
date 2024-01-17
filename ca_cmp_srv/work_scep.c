@@ -10,6 +10,7 @@
 #include "js_pkcs7.h"
 #include "js_scep.h"
 #include "js_log.h"
+#include "js_gen.h"
 
 #include "cmp_srv.h"
 
@@ -137,6 +138,7 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
 
 //    JS_BIN_fileWrite( pSignedData, "D:/jsca/rep_signeddata.ber" );
 //    JS_BIN_fileWrite( &binNewCert, "D:/jsca/new_cert.crt" );
+    JS_DB_addAuditInfo( db, JS_GEN_KIND_CMP_SRV, JS_GEN_OP_SCEP, "Admin", NULL );
     LI( "SignedData Length : %d", pSignedData->nLen );
 
 end :

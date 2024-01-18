@@ -29,7 +29,7 @@ int     g_nCertProfileNum = -1;
 int     g_nIssuerNum = -1;
 int     g_nPort = JS_CMP_PORT;
 int     g_nSSLPort = JS_CMP_SSL_PORT;
-int     g_nLogLevel = JS_LOG_LEVEL_INFO;
+// int     g_nLogLevel = JS_LOG_LEVEL_INFO;
 
 SSL_CTX     *g_pSSLCTX = NULL;
 
@@ -502,7 +502,7 @@ int Init( sqlite3* db )
     const char *value = NULL;
 
     value = JS_CFG_getValue( g_pEnvList, "LOG_LEVEL" );
-    if( value ) g_nLogLevel = atoi( value );
+    JS_LOG_setLevel( atoi( value ) );
 
     value = JS_CFG_getValue( g_pEnvList, "LOG_PATH" );
     if( value )

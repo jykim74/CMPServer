@@ -138,7 +138,7 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
 
 //    JS_BIN_fileWrite( pSignedData, "D:/jsca/rep_signeddata.ber" );
 //    JS_BIN_fileWrite( &binNewCert, "D:/jsca/new_cert.crt" );
-    JS_DB_addAuditInfo( db, JS_GEN_KIND_CMP_SRV, JS_GEN_OP_SCEP, "Admin", NULL );
+
     LI( "SignedData Length : %d", pSignedData->nLen );
 
 end :
@@ -213,10 +213,12 @@ int workPKIOperation( sqlite3* db, const BIN *pPKIReq, BIN *pCertRsp )
     if( nType == JS_SCEP_REQUEST_PKCSREQ )
     {
         ret = runPKIReq( db, &binSignCert, &binDevData, &binResData );
+        if( ret == 0 ) JS_DB_addAuditInfo( db, JS_GEN_KIND_CMP_SRV, JS_GEN_OP_SCEP_PKCS_REQ, "Admin", NULL );
     }
     else if( nType == JS_SCEP_REQUEST_GETCRL )
     {
         ret = runGetCRL( db, &binSignCert, &binDevData, &binResData );
+        if( ret == 0 ) JS_DB_addAuditInfo( db, JS_GEN_KIND_CMP_SRV, JS_GEN_OP_SCEP_GET_CRL, "Admin", NULL );
     }
     else if( nType == JS_SCEP_REQUEST_GETCERT )
     {

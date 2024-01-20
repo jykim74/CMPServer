@@ -120,7 +120,7 @@ int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
     return ret;
 }
 
-int makeCert( JDB_CertProfile *pDBCertProfile, JDB_ProfileExtList *pDBProfileExtList, JIssueCertInfo *pIssueCertInfo, int nKeyType, BIN *pCert )
+int makeCert( JDB_CertProfile *pDBCertProfile, JDB_ProfileExtList *pDBProfileExtList, JIssueCertInfo *pIssueCertInfo, BIN *pCert )
 {
     int ret = 0;
 
@@ -192,7 +192,7 @@ int makeCert( JDB_CertProfile *pDBCertProfile, JDB_ProfileExtList *pDBProfileExt
     if( g_pP11CTX )
         ret = JS_PKI_makeCertificateByP11( 0, pIssueCertInfo, pExtInfoList, &g_binCAPriKey, &g_binCACert, g_pP11CTX, pCert );
     else
-        ret = JS_PKI_makeCertificate( 0, pIssueCertInfo, pExtInfoList, nKeyType, &g_binCAPriKey, &g_binCACert, pCert );
+        ret = JS_PKI_makeCertificate( 0, pIssueCertInfo, pExtInfoList, &g_binCAPriKey, &g_binCACert, pCert );
 
 
     if( pExtInfoList ) JS_PKI_resetExtensionInfoList( &pExtInfoList );
@@ -291,7 +291,7 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
                                 pPubKey );
 
 
-        ret = makeCert( &sDBCertProfile, pDBProfileExtList, &sIssueCertInfo, nKeyType, pNewCert );
+        ret = makeCert( &sDBCertProfile, pDBProfileExtList, &sIssueCertInfo, pNewCert );
         if( ret != 0 )
         {
             JS_LOG_write( JS_LOG_LEVEL_ERROR, "fail to make certificate(ret:%d)", ret );
@@ -462,7 +462,7 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
                                 pPubKey );
 
 
-        ret = makeCert( &sDBCertProfile, pDBProfileExtList, &sIssueCertInfo, nKeyType, pNewCert );
+        ret = makeCert( &sDBCertProfile, pDBProfileExtList, &sIssueCertInfo, pNewCert );
         if( ret != 0 )
         {
             JS_LOG_write( JS_LOG_LEVEL_ERROR, "fail to make certificate (ret:%d)", ret );

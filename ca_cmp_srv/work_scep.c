@@ -99,7 +99,7 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
                              nKeyType,
                              sReqInfo.pPublicKey );
 
-    ret = makeCert( &sDBCertProfile, pDBProfileExtList, &sIssueCertInfo, nKeyType, &binNewCert );
+    ret = makeCert( &sDBCertProfile, pDBProfileExtList, &sIssueCertInfo, &binNewCert );
     if( ret != 0 )
     {
         LE( "fail to make certificate : %d", ret );

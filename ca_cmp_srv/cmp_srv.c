@@ -31,7 +31,6 @@ int     g_nPort = JS_CMP_PORT;
 int     g_nSSLPort = JS_CMP_SSL_PORT;
 
 SSL_CTX     *g_pSSLCTX = NULL;
-
 JEnvList    *g_pEnvList = NULL;
 
 int     g_nConfigDB = 0;
@@ -40,6 +39,10 @@ static char g_sBuildInfo[1024];
 
 int g_nVerbose = 0;
 static char g_sConfigPath[1024];
+
+int g_nKeyType = -1;
+const char *g_pParam = NULL;
+const char *g_pKeyGen = NULL;
 
 const char *getBuildInfo()
 {
@@ -499,6 +502,7 @@ int Init( sqlite3* db )
 {
     int ret = 0;
     const char *value = NULL;
+    BIN binPub = {0,0};
 
     value = JS_CFG_getValue( g_pEnvList, "LOG_LEVEL" );
     JS_LOG_setLevel( atoi( value ) );
@@ -526,6 +530,7 @@ int Init( sqlite3* db )
     {
 
         JDB_Cert sCert;
+
         memset( &sCert, 0x00, sizeof(sCert));
 
         value = JS_CFG_getValue( g_pEnvList, "ROOTCA_CERT_NUM" );
@@ -582,6 +587,10 @@ int Init( sqlite3* db )
             return -1;
         }
     }
+
+    JS_PKI_getPubKeyFromCert( &g_binCACert, &binPub );
+    g_nKeyType = JS_PKI_getPubKeyType( &binPub );
+    JS_BIN_reset( &binPub );
 
     value = JS_CFG_getValue( g_pEnvList, "CA_HSM_USE" );
     if( value && strcasecmp( value, "YES" ) == 0 )
@@ -641,6 +650,24 @@ int Init( sqlite3* db )
     }
 
     g_nIssuerNum = atoi( value );
+
+    value = JS_CFG_getValue( g_pEnvList, "CA_PARAM" );
+    if( value == NULL )
+    {
+        LE( "You have to set 'CA_PARAM'" );
+        return -1;
+    }
+
+    g_pParam = value;
+
+    value = JS_CFG_getValue( g_pEnvList, "CA_KEY_GEN" );
+    if( value == NULL )
+    {
+        LE( "You have to set 'CA_KEY_GEN'" );
+        return -1;
+    }
+
+    g_pKeyGen = value;
 
     BIN binSSLCA = {0,0};
     BIN binSSLCert = {0,0};

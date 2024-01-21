@@ -31,6 +31,10 @@ extern BIN     g_binSignPri;
 extern int      g_nCertProfileNum;
 extern int      g_nIssuerNum;
 
+extern const char* g_pParam;
+extern const char* g_pKeyGen;
+extern int g_nKeyType;
+
 int msgDump( int nIsReq, int nReqType, const BIN *pMsg )
 {
     char        sSavePath[1024];
@@ -81,16 +85,38 @@ int msgDump( int nIsReq, int nReqType, const BIN *pMsg )
 int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
 {
     int ret = 0;
-    JDB_Config  sConfig;
+
     ASN1_UTF8STRING *pText = NULL;
+    char sFreeText[1024];
 
     STACK_OF(OSSL_CMP_ITAV) *pITAVs = pBody;
 //    const char *msg = "alg=RSA$keylen=2048$keygen=user";
 
     int nCnt = sk_OSSL_CMP_ITAV_num( pITAVs );
 
+#if 0
+    JDB_Config  sConfig;
     memset( &sConfig, 0x00, sizeof(sConfig));
-    ret = JS_DB_getConfigByKind( db, JS_KIND_CMP_FREE_TEXT, &sConfig );
+//    ret = JS_DB_getConfigByKind( db, JS_KIND_CMP_FREE_TEXT, &sConfig );
+    ret = JS_DB_getConfigByName( db, JS_GEN_KIND_CMP_SRV, "GENM_FREE_TEST", &sConfig );
+    if( sConfig.pValue )
+    {
+        pText = ASN1_UTF8STRING_new();
+        ASN1_STRING_set0( pText, strdup( sConfig.pValue ), strlen(sConfig.pValue) );
+
+        OSSL_CMP_set0_freeText( pCTX, pText );
+    }
+
+    JS_DB_resetConfig( &sConfig );
+#else
+    sprintf( sFreeText, "alg=%s&param=%s&keygen=%s", JS_PKI_getKeyAlgName( g_nKeyType ), g_pParam, g_pKeyGen );
+    pText = ASN1_UTF8STRING_new();
+    ASN1_STRING_set0( pText, strdup( sFreeText ), strlen(sFreeText) );
+
+    OSSL_CMP_set0_freeText( pCTX, pText );
+#endif
+
+
 
     for( int i=0; i < nCnt; i++ )
     {
@@ -103,19 +129,12 @@ int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
         ASN1_TYPE *pAType = OSSL_CMP_ITAV_get0_value( pITAV );
     }
 
-    if( sConfig.pValue )
-    {
-        pText = ASN1_UTF8STRING_new();
-        ASN1_STRING_set0( pText, strdup( sConfig.pValue ), strlen(sConfig.pValue) );
 
-        OSSL_CMP_set0_freeText( pCTX, pText );
-    }
 
     ret = 0;
     JS_DB_addAuditInfo( db, JS_GEN_KIND_CMP_SRV, JS_GEN_OP_CMP_GENM, "Admin", NULL );
 
  end :
-    JS_DB_resetConfig( &sConfig );
 
     return ret;
 }

@@ -277,6 +277,8 @@ int procSCEP( sqlite3* db, const JNameValList *pParamList, const BIN *pReq, BIN 
         return -1;
     }
 
+    LI( "SCEP Operation: %s", pOper );
+
     if( strcasecmp( pOper, "GetCACaps") == 0 )
     {
         const char *pMsg = "POSTPKIOperation\r\nRenewal\r\nSHA-1";

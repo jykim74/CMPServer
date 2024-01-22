@@ -110,6 +110,8 @@ int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
     JS_DB_resetConfig( &sConfig );
 #else
     sprintf( sFreeText, "alg=%s&param=%s&keygen=%s", JS_PKI_getKeyAlgName( g_nKeyType ), g_pParam, g_pKeyGen );
+    LV( "GENM FreeText: %s", sFreeText );
+
     pText = ASN1_UTF8STRING_new();
     ASN1_STRING_set0( pText, strdup( sFreeText ), strlen(sFreeText) );
 

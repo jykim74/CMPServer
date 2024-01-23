@@ -56,6 +56,12 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
     memset( &sKeyID, 0x00, sizeof(sKeyID));
 
     ret = JS_DB_getCertProfile( db, g_nCertProfileNum, &sDBCertProfile );
+    if( ret != 1 )
+    {
+        LE( "fail get certificate profile: %d", ret );
+        goto end;
+    }
+
     ret = JS_DB_getCertProfileExtList( db, sDBCertProfile.nNum, &pDBProfileExtList );
 
     time_t now_t = time(NULL);
@@ -83,8 +89,6 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
     nKeyType = JS_PKI_getPubKeyType( &binPub );
     JS_PKI_getKeyIdentifier( &binPub, sKeyID );
 
-//    nSeq = JS_DB_getSeq( db, "TB_CERT" );
-//    nSeq++;
     nSeq = JS_DB_getNextVal( db, "TB_CERT" );
 
     sprintf( sSerial, "%d", nSeq );
@@ -109,6 +113,11 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
     JS_BIN_encodeHex( &binNewCert, &pHexCert );
 
     ret = JS_PKI_getCertInfo( &binNewCert, &sNewCertInfo, NULL );
+    if( ret != 0 )
+    {
+        LE( "fail to get certificate information: %d", ret );
+        goto end;
+    }
 
     JS_DB_setCert( &sNewDBcert,
                    -1,
@@ -128,6 +137,11 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
                    "" );
 
     ret = JS_DB_addCert( db, &sNewDBcert );
+    if( ret != 0 )
+    {
+        LE( "fail to add certifciate information to db: %d", ret );
+        goto end;
+    }
 
     ret = JS_SCEP_genSignedDataWithoutSign( &binNewCert, NULL, pSignedData );
     if( ret != 0 )
@@ -135,9 +149,6 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
         LE( "fail to make response signeddata : %d", ret );
         goto end;
     }
-
-//    JS_BIN_fileWrite( pSignedData, "D:/jsca/rep_signeddata.ber" );
-//    JS_BIN_fileWrite( &binNewCert, "D:/jsca/new_cert.crt" );
 
     LI( "SignedData Length : %d", pSignedData->nLen );
 
@@ -167,7 +178,12 @@ int runGetCRL( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
 
     pXIAS = d2i_PKCS7_ISSUER_AND_SERIAL( NULL, &pPos, pData->nLen );
 
-    JS_DB_getLatestCRL( db, g_nIssuerNum, &sDBCRL );
+    ret = JS_DB_getLatestCRL( db, g_nIssuerNum, &sDBCRL );
+    if( ret < 1 )
+    {
+        LE( "fail to get latest CRL" );
+        goto end;
+    }
 
     JS_BIN_decodeHex( sDBCRL.pCRL, &binCRL );
 
@@ -286,7 +302,14 @@ int procSCEP( sqlite3* db, const JNameValList *pParamList, const BIN *pReq, BIN 
     }
     else if( strcasecmp( pOper, "GetCACert" ) == 0 )
     {
-        JS_BIN_copy( pRsp, &g_binCACert );
+        if( g_binCACert.nLen <= 0 )
+        {
+            LE( "CA certificate is empty" );
+        }
+        else
+        {
+            JS_BIN_copy( pRsp, &g_binCACert );
+        }
     }
     else if( strcasecmp( pOper, "PKIOperation" ) == 0 )
     {

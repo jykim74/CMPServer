@@ -165,7 +165,12 @@ int makeCert( JDB_CertProfile *pDBCertProfile, JDB_ProfileExtList *pDBProfileExt
 
             memset( sHexID, 0x00, sizeof(sHexID));
             JS_BIN_decodeHex(pIssueCertInfo->pPublicKey, &binPub);
-            JS_PKI_getKeyIdentifier( &binPub, sHexID );
+            ret = JS_PKI_getKeyIdentifier( &binPub, sHexID );
+            if( ret != 0 )
+            {
+                LE( "fail to get KeyIdentifier: %d", ret );
+                goto end;
+            }
 
             if( pDBCurList->sProfileExt.pValue )
             {
@@ -189,7 +194,13 @@ int makeCert( JDB_CertProfile *pDBCertProfile, JDB_ProfileExtList *pDBProfileExt
             memset( sHexIssuer, 0x00, sizeof(sHexIssuer));
             memset( sBuf, 0x00, sizeof(sBuf));
 
-            JS_PKI_getAuthorityKeyIdentifier( &g_binCACert, sHexID, sHexSerial, sHexIssuer );
+            ret = JS_PKI_getAuthorityKeyIdentifier( &g_binCACert, sHexID, sHexSerial, sHexIssuer );
+            if( ret != 0 )
+            {
+                LE( "fail to get AuthorityKeyIdentifier: %d", ret );
+                goto end;
+            }
+
             sprintf( sBuf, "KEYID$%s#ISSUER$%s#SERIAL$%s", sHexID, sHexIssuer, sHexSerial );
             if( pDBCurList->sProfileExt.pValue )
             {
@@ -215,7 +226,7 @@ int makeCert( JDB_CertProfile *pDBCertProfile, JDB_ProfileExtList *pDBProfileExt
     else
         ret = JS_PKI_makeCertificate( 0, pIssueCertInfo, pExtInfoList, &g_binCAPriKey, &g_binCACert, pCert );
 
-
+end :
     if( pExtInfoList ) JS_PKI_resetExtensionInfoList( &pExtInfoList );
 
     return ret;

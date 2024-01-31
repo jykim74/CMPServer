@@ -148,6 +148,12 @@ int CMP_Service( JThreadInfo *pThInfo )
         /* read request body */
         ret = procCMP( db, &binReq, &binRsp );
     }
+    else
+    {
+        ret = -1;
+        LE( "Invalid URL: %s", pPath );
+        goto end;
+    }
 
     if( ret != 0 )
     {
@@ -243,6 +249,12 @@ int CMP_SSL_Service( JThreadInfo *pThInfo )
             LE( "fail to run CMP(%d)", ret );
             goto end;
         }
+    }
+    else
+    {
+        ret = -1;
+        LE( "Invalid URL: %s", pPath );
+        goto end;
     }
 
     pRspMethod = JS_HTTP_getStatusMsg( JS_HTTP_STATUS_OK );

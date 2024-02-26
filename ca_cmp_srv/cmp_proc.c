@@ -94,28 +94,17 @@ int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
 
     int nCnt = sk_OSSL_CMP_ITAV_num( pITAVs );
 
-#if 0
-    JDB_Config  sConfig;
-    memset( &sConfig, 0x00, sizeof(sConfig));
-//    ret = JS_DB_getConfigByKind( db, JS_KIND_CMP_FREE_TEXT, &sConfig );
-    ret = JS_DB_getConfigByName( db, JS_GEN_KIND_CMP_SRV, "GENM_FREE_TEST", &sConfig );
-    if( sConfig.pValue )
-    {
-        pText = ASN1_UTF8STRING_new();
-        ASN1_STRING_set0( pText, strdup( sConfig.pValue ), strlen(sConfig.pValue) );
 
-        OSSL_CMP_set0_freeText( pCTX, pText );
-    }
-
-    JS_DB_resetConfig( &sConfig );
-#else
     sprintf( sFreeText, "alg=%s&param=%s&keygen=%s", JS_PKI_getKeyAlgName( g_nKeyType ), g_pParam, g_pKeyGen );
     LV( "GENM FreeText: %s", sFreeText );
 
     pText = ASN1_UTF8STRING_new();
     ASN1_STRING_set0( pText, strdup( sFreeText ), strlen(sFreeText) );
 
+#ifdef CMP_MOD
     OSSL_CMP_set0_freeText( pCTX, pText );
+#else
+    JS_OSSL_CMP_set0_freeText( pCTX, pText );
 #endif
 
 
@@ -280,7 +269,12 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
 
         OSSL_CRMF_MSG *pMsg = sk_OSSL_CRMF_MSG_value( pMsgs, i );
         OSSL_CRMF_CERTTEMPLATE *pTmpl = OSSL_CRMF_MSG_get0_tmpl( pMsg );
+
+#ifdef CMP_MOD
         X509_PUBKEY *pXPubKey = OSSL_CRMF_CERTTEMPLATE_get0_publicKey( pTmpl );
+#else
+        X509_PUBKEY *pXPubKey = JS_OSSL_CRMF_CERTTEMPLATE_get0_publicKey( pTmpl );
+#endif
 
         nOutLen = i2d_X509_PUBKEY( pXPubKey, &pOut );
         JS_BIN_set( &binPub, pOut, nOutLen );
@@ -394,7 +388,11 @@ int procRR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody )
 
     memset( &sDBRevoked, 0x00, sizeof(sDBRevoked));
 
+#ifdef CMP_MOD
     pXExts = OSSL_CMP_get0_crlEntryDetails( pBody, 0 );
+#else
+    pXExts = JS_OSSL_CMP_get0_crlEntryDetails( pBody, 0 );
+#endif
 
     pXReason = sk_X509_EXTENSION_value( pXExts, 0 );
     ASN1_OCTET_STRING *pAOctet = X509_EXTENSION_get_data( pXReason );
@@ -455,7 +453,12 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
 
         OSSL_CRMF_MSG *pMsg = sk_OSSL_CRMF_MSG_value( pMsgs, i );
         OSSL_CRMF_CERTTEMPLATE *pTmpl = OSSL_CRMF_MSG_get0_tmpl( pMsg );
+
+#ifdef CMP_MOD
         X509_PUBKEY *pXPubKey = OSSL_CRMF_CERTTEMPLATE_get0_publicKey( pTmpl );
+#else
+        X509_PUBKEY *pXPubKey = JS_OSSL_CRMF_CERTTEMPLATE_get0_publicKey( pTmpl );
+#endif
 
         nOutLen = i2d_X509_PUBKEY( pXPubKey, &pOut );
         JS_BIN_set( &binPub, pOut, nOutLen );
@@ -561,10 +564,15 @@ int procCertConf( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, JDB_Cert *
     for( int i=0; i < nCnt; i++ )
     {
         OSSL_CMP_CERTSTATUS *pStat = sk_OSSL_CMP_CERTSTATUS_value( pCertStatus, i );
-
+#ifdef CMP_MOD
         ASN1_OCTET_STRING *pAHash = OSSL_CMP_CERTSTATUS_get0_certHash( pStat );
         ASN1_INTEGER *pAReqId = OSSL_CMP_CERTSTATUS_get0_certReqId( pStat );
         OSSL_CMP_PKISI *pInfo = OSSL_CMP_CERTSTATUS_get0_statusInfo( pStat );
+#else
+        ASN1_OCTET_STRING *pAHash = JS_OSSL_CMP_CERTSTATUS_get0_certHash( pStat );
+        ASN1_INTEGER *pAReqId = JS_OSSL_CMP_CERTSTATUS_get0_certReqId( pStat );
+        OSSL_CMP_PKISI *pInfo = JS_OSSL_CMP_CERTSTATUS_get0_statusInfo( pStat );
+#endif
     }
 
     if( pDBUser && pDBUser->nNum > 0 )
@@ -633,12 +641,22 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
 
     int nReqType = OSSL_CMP_MSG_get_bodytype( pReqMsg );
     pHeader = OSSL_CMP_MSG_get0_header( pReqMsg );
+
+#ifdef CMP_MOD
     void *pBody = OSSL_CMP_MSG_get0_body( pReqMsg );
+#else
+    void *pBody = JS_OSSL_CMP_MSG_get0_body( pReqMsg );
+#endif
 
     ASN1_OCTET_STRING *pARecipNonce = OSSL_CMP_HDR_get0_recipNonce( pHeader );
 //    ASN1_OCTET_STRING *pASenderNonce = OSSL_CMP_HDR_get0_senderNonce( pHeader );
     ASN1_OCTET_STRING *pATransID = OSSL_CMP_HDR_get0_transactionID( pHeader );
+
+#ifdef CMP_MOD
     ASN1_OCTET_STRING *pASenderKID = OSSL_CMP_HDR_get0_senderKID( pHeader );
+#else
+    ASN1_OCTET_STRING *pASenderKID = JS_OSSL_CMP_HDR_get0_senderKID( pHeader );
+#endif
 
     if( g_nMsgDump ) msgDump( 1, nReqType, pReq );
 

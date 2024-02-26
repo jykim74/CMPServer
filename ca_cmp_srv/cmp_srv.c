@@ -10,6 +10,7 @@
 #include "js_cfg.h"
 #include "js_log.h"
 #include "js_pkcs11.h"
+#include "js_scep.h"
 
 #include "js_process.h"
 #include "cmp_srv.h"
@@ -771,6 +772,7 @@ int Init( sqlite3* db )
     JS_BIN_reset( &binSSLCert );
     JS_BIN_reset( &binSSLPri );
 
+    JS_SCEP_init();
 
     LI( "CMP Server Init OK [Port:%d SSL:%d]", g_nPort, g_nSSLPort );
     return 0;

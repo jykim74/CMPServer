@@ -111,6 +111,7 @@ int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
 
     for( int i=0; i < nCnt; i++ )
     {
+#if 0
         unsigned char sBuf[1024];
 
         memset( sBuf, 0x00, sizeof(sBuf));
@@ -118,6 +119,26 @@ int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
         OSSL_CMP_ITAV   *pITAV = sk_OSSL_CMP_ITAV_value(  pITAVs, i );
         ASN1_OBJECT *pAObj = OSSL_CMP_ITAV_get0_type( pITAV );
         ASN1_TYPE *pAType = OSSL_CMP_ITAV_get0_value( pITAV );
+#else
+        ASN1_OBJECT *type = OBJ_txt2obj("1.2.3.4.5", 1);
+        ASN1_INTEGER *asn1int = ASN1_INTEGER_new();
+
+        if (asn1int == NULL || !ASN1_INTEGER_set(asn1int, 12345))
+        {
+            ret = -10;
+            goto end;
+        }
+
+        ASN1_TYPE *val = ASN1_TYPE_new();
+        ASN1_TYPE_set(val, V_ASN1_INTEGER, asn1int);
+
+        OSSL_CMP_ITAV *itav = OSSL_CMP_ITAV_create(type, val);
+        if( OSSL_CMP_CTX_push0_geninfo_ITAV(pCTX, itav ) !=  1 )
+        {
+            ret = -11;
+            goto end;
+        }
+#endif
     }
 
 

@@ -107,8 +107,6 @@ int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
     JS_OSSL_CMP_set0_freeText( pCTX, pText );
 #endif
 
-
-
     for( int i=0; i < nCnt; i++ )
     {
 #if 0

@@ -109,7 +109,7 @@ int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
 
     for( int i=0; i < nCnt; i++ )
     {
-#if 0
+#if 1
         unsigned char sBuf[1024];
 
         memset( sBuf, 0x00, sizeof(sBuf));
@@ -117,7 +117,35 @@ int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
         OSSL_CMP_ITAV   *pITAV = sk_OSSL_CMP_ITAV_value(  pITAVs, i );
         ASN1_OBJECT *pAObj = OSSL_CMP_ITAV_get0_type( pITAV );
         ASN1_TYPE *pAType = OSSL_CMP_ITAV_get0_value( pITAV );
+
+        if( pAObj )
+        {
+            char buf[1024];
+            memset( buf, 0x00, sizeof(buf));
+            OBJ_obj2txt( buf, sizeof(buf), pAObj, 1 );
+            LD( "ITAV Type: %s", buf );
+        }
+
 #else
+
+        if( pAType )
+        {
+            unsigned char *pOut = NULL;
+            int nOutLen = 0;
+            char *pHex = NULL;
+            BIN bin;
+
+            nOutLen = i2d_ASN1_TYPE( pAType, &pOut );
+
+            bin.nLen = nOutLen;
+            bin.pVal = pOut;
+
+            JS_BIN_encodeHex( &bin, &pHex );
+            LD( "ITAV ITAV value: %s", pHex );
+            if( pHex ) JS_free( pHex );
+            if( pOut ) OPENSSL_free( pOut );
+        }
+
         ASN1_OBJECT *type = OBJ_txt2obj("1.2.3.4.5", 1);
         ASN1_INTEGER *asn1int = ASN1_INTEGER_new();
 

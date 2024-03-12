@@ -4,6 +4,11 @@
 #include "openssl/cmperr.h"
 
 #include "js_log.h"
+#include "js_pki_tools.h"
+
+extern const char* g_pParam;
+extern const char* g_pKeyGen;
+extern int g_nKeyType;
 
 typedef struct
 {
@@ -218,10 +223,44 @@ static int process_genm(
         const STACK_OF(OSSL_CMP_ITAV) *in,
         STACK_OF(OSSL_CMP_ITAV) **out )
 {
+    STACK_OF(OSSL_CMP_ITAV) *pRspItavs = NULL;
+
     mock_srv_ctx *ctx = OSSL_CMP_SRV_CTX_get0_custom_ctx( srv_ctx );
     if( in )
     {
         print_itavs( in );
+
+        for( int i = 0; i < sk_OSSL_CMP_ITAV_num( in ); i++ )
+        {
+            ASN1_OBJECT *pAObj = NULL;
+            ASN1_TYPE *pAValue = NULL;
+            int nNid = -1;
+
+            OSSL_CMP_ITAV *pITAV = sk_OSSL_CMP_ITAV_value( in, i );
+
+            if( pITAV )
+            {
+                pAObj = OSSL_CMP_ITAV_get0_type( pITAV );
+                nNid = OBJ_obj2nid( pAObj );
+
+                if( nNid == NID_id_regInfo )
+                {
+                    OSSL_CMP_ITAV *pRspItav = NULL;
+                    ASN1_UTF8STRING *pText = NULL;
+
+                    char sFreeText[1024];
+                    sprintf( sFreeText, "alg=%s&param=%s&keygen=%s", JS_PKI_getKeyAlgName( g_nKeyType ), g_pParam, g_pKeyGen );
+                    LV( "GENM FreeText: %s", sFreeText );
+
+                    pText = ASN1_UTF8STRING_new();
+                    ASN1_STRING_set0( pText, strdup( sFreeText ), strlen(sFreeText) );
+                    pAValue = ASN1_TYPE_new();
+                    ASN1_TYPE_set( pAValue, V_ASN1_UTF8STRING, pText );
+                    pRspItav = OSSL_CMP_ITAV_create( pAObj, pAValue );
+                    OSSL_CMP_ITAV_push0_stack_item( &pRspItavs, pRspItav );
+                }
+            }
+        }
     }
 
     if( ctx == NULL || genm == NULL || in == NULL || out == NULL )
@@ -236,7 +275,8 @@ static int process_genm(
         return 0;
     }
 
-    *out = sk_OSSL_CMP_ITAV_deep_copy( in, OSSL_CMP_ITAV_dup, OSSL_CMP_ITAV_free );
+//    *out = sk_OSSL_CMP_ITAV_deep_copy( in, OSSL_CMP_ITAV_dup, OSSL_CMP_ITAV_free );
+    *out = pRspItavs;
 
     return *out != NULL;
 }

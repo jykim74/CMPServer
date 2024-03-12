@@ -53,50 +53,6 @@ const char *getBuildInfo()
     return g_sBuildInfo;
 }
 
-OSSL_CMP_SRV_CTX* setupServerCTX()
-{
-    OSSL_CMP_CTX        *pCTX = NULL;
-    OSSL_CMP_SRV_CTX    *pSrvCTX = NULL;
-    X509                *pXCACert = NULL;
-    X509                *pXRootCACert = NULL;
-    EVP_PKEY            *pECAPriKey = NULL;
-    X509_STORE          *pXStore = NULL;
-
-    unsigned char *pPosCACert = g_binCACert.pVal;
-    unsigned char *pPosCAPriKey = g_binCAPriKey.pVal;
-    unsigned char *pPosRootCACert = g_binRootCert.pVal;
-
-    int nStatus = 0;
-    int nFailInfo = -2;
-
-    pSrvCTX = ossl_cmp_mock_srv_new( NULL, NULL );
-    if( pSrvCTX == NULL ) return NULL;
-
-    OSSL_CMP_SRV_CTX_set_grant_implicit_confirm( pSrvCTX, 1 );
-
-    pCTX = OSSL_CMP_SRV_CTX_get0_cmp_ctx( pSrvCTX );
-
-    pXRootCACert = d2i_X509( NULL, &pPosRootCACert, g_binRootCert.nLen );
-    pXCACert = d2i_X509( NULL, &pPosCACert, g_binCACert.nLen );
-    pECAPriKey = d2i_PrivateKey( EVP_PKEY_RSA, NULL, &pPosCAPriKey, g_binCAPriKey.nLen );
-
-    pXStore = X509_STORE_new();
-    X509_STORE_add_cert( pXStore, pXRootCACert );
-    X509_STORE_add_cert( pXStore, pXCACert );
-    OSSL_CMP_CTX_set0_trustedStore( pCTX, pXStore );
-
-    OSSL_CMP_CTX_set1_cert( pCTX, pXCACert );
-
-    X509_free( pXCACert );
-
-    OSSL_CMP_CTX_set1_pkey( pCTX, pECAPriKey );
-
-    ossl_cmp_mock_srv_set_checkAfterTime( pSrvCTX, 10 );
-    ossl_cmp_mock_srv_set_statusInfo( pSrvCTX, nStatus, nFailInfo, "Status" );
-
-end :
-    return pSrvCTX;
-}
 
 
 int CMP_Service( JThreadInfo *pThInfo )

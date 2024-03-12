@@ -82,6 +82,52 @@ int msgDump( int nIsReq, int nReqType, const BIN *pMsg )
     return JS_BIN_fileWrite( pMsg, sSavePath );
 }
 
+OSSL_CMP_SRV_CTX* setupServerCTX()
+{
+    OSSL_CMP_CTX        *pCTX = NULL;
+    OSSL_CMP_SRV_CTX    *pSrvCTX = NULL;
+    X509                *pXCACert = NULL;
+    X509                *pXRootCACert = NULL;
+    EVP_PKEY            *pECAPriKey = NULL;
+    X509_STORE          *pXStore = NULL;
+
+    unsigned char *pPosCACert = g_binCACert.pVal;
+    unsigned char *pPosCAPriKey = g_binCAPriKey.pVal;
+    unsigned char *pPosRootCACert = g_binRootCert.pVal;
+
+    int nStatus = 0;
+    int nFailInfo = -2;
+
+    pSrvCTX = ossl_cmp_mock_srv_new( NULL, NULL );
+    if( pSrvCTX == NULL ) return NULL;
+
+    OSSL_CMP_SRV_CTX_set_grant_implicit_confirm( pSrvCTX, 1 );
+
+    pCTX = OSSL_CMP_SRV_CTX_get0_cmp_ctx( pSrvCTX );
+
+    pXRootCACert = d2i_X509( NULL, &pPosRootCACert, g_binRootCert.nLen );
+    pXCACert = d2i_X509( NULL, &pPosCACert, g_binCACert.nLen );
+    pECAPriKey = d2i_PrivateKey( EVP_PKEY_RSA, NULL, &pPosCAPriKey, g_binCAPriKey.nLen );
+
+    pXStore = X509_STORE_new();
+    X509_STORE_add_cert( pXStore, pXRootCACert );
+    X509_STORE_add_cert( pXStore, pXCACert );
+    OSSL_CMP_CTX_set0_trustedStore( pCTX, pXStore );
+
+    OSSL_CMP_CTX_set1_cert( pCTX, pXCACert );
+
+    X509_free( pXCACert );
+
+    OSSL_CMP_CTX_set1_pkey( pCTX, pECAPriKey );
+
+    ossl_cmp_mock_srv_set_checkAfterTime( pSrvCTX, 10 );
+    ossl_cmp_mock_srv_set_statusInfo( pSrvCTX, nStatus, nFailInfo, "Status" );
+
+end :
+    return pSrvCTX;
+}
+
+
 int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
 {
     int ret = 0;
@@ -93,7 +139,6 @@ int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
 //    const char *msg = "alg=RSA$keylen=2048$keygen=user";
 
     int nCnt = sk_OSSL_CMP_ITAV_num( pITAVs );
-
 
     sprintf( sFreeText, "alg=%s&param=%s&keygen=%s", JS_PKI_getKeyAlgName( g_nKeyType ), g_pParam, g_pKeyGen );
     LV( "GENM FreeText: %s", sFreeText );
@@ -109,7 +154,6 @@ int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
 
     for( int i=0; i < nCnt; i++ )
     {
-#if 1
         unsigned char sBuf[1024];
 
         memset( sBuf, 0x00, sizeof(sBuf));
@@ -125,46 +169,6 @@ int procGENM( sqlite3 *db, OSSL_CMP_CTX *pCTX, void *pBody )
             OBJ_obj2txt( buf, sizeof(buf), pAObj, 1 );
             LD( "ITAV Type: %s", buf );
         }
-
-#else
-
-        if( pAType )
-        {
-            unsigned char *pOut = NULL;
-            int nOutLen = 0;
-            char *pHex = NULL;
-            BIN bin;
-
-            nOutLen = i2d_ASN1_TYPE( pAType, &pOut );
-
-            bin.nLen = nOutLen;
-            bin.pVal = pOut;
-
-            JS_BIN_encodeHex( &bin, &pHex );
-            LD( "ITAV ITAV value: %s", pHex );
-            if( pHex ) JS_free( pHex );
-            if( pOut ) OPENSSL_free( pOut );
-        }
-
-        ASN1_OBJECT *type = OBJ_txt2obj("1.2.3.4.5", 1);
-        ASN1_INTEGER *asn1int = ASN1_INTEGER_new();
-
-        if (asn1int == NULL || !ASN1_INTEGER_set(asn1int, 12345))
-        {
-            ret = -10;
-            goto end;
-        }
-
-        ASN1_TYPE *val = ASN1_TYPE_new();
-        ASN1_TYPE_set(val, V_ASN1_INTEGER, asn1int);
-
-        OSSL_CMP_ITAV *itav = OSSL_CMP_ITAV_create(type, val);
-        if( OSSL_CMP_CTX_push0_geninfo_ITAV(pCTX, itav ) !=  1 )
-        {
-            ret = -11;
-            goto end;
-        }
-#endif
     }
 
 

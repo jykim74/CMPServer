@@ -47,7 +47,7 @@ if(WIN32)
 
 elseif(APPLE)
     include_directories(
-        ../../lib/win64/openssl3/include
+        ../../lib/mac/openssl3/include
         ../../PKILib
         /usr/local/include )
 

@@ -30,12 +30,12 @@ win32 {
 
         Debug {
             INCLUDEPATH += "../../PKILib/lib/win32/debug/openssl3/include"
-            LIBS += -L"../../build-PKILib-Desktop_Qt_5_13_2_MinGW_32_bit-Debug/debug" -lPKILib -lws2_32
-            LIBS += -L"../../PKILib/lib/win32/debug/openssl3/lib" -lcrypto -lssl
+            LIBS += -L"../../build-PKILib-Desktop_Qt_5_13_2_MinGW_32_bit-Debug" -lPKILib -lws2_32
+            LIBS += -L"../../lib/win32/debug/openssl3/lib" -lcrypto -lssl
         } else {
             INCLUDEPATH += "../../PKILib/lib/win32/openssl3/include"
-            LIBS += -L"../../build-PKILib-Desktop_Qt_5_13_2_MinGW_32_bit-Release/release" -lPKILib -lws2_32
-            LIBS += -L"../../PKILib/lib/win32/openssl3/lib" -lcrypto -lssl
+            LIBS += -L"../../build-PKILib-Desktop_Qt_5_13_2_MinGW_32_bit-Release" -lPKILib -lws2_32
+            LIBS += -L"../../lib/win32/openssl3/lib" -lcrypto -lssl
         }
 
         INCLUDEPATH += "C:\msys64\mingw32\include"
@@ -45,12 +45,14 @@ win32 {
 
         Debug {
             INCLUDEPATH += "../../PKILib/lib/win64/debug/openssl3/include"
-            LIBS += -L"../../build-PKILib-Desktop_Qt_5_13_2_MinGW_64_bit-Debug/debug" -lPKILib -lws2_32
-            LIBS += -L"../../PKILib/lib/win64/debug/openssl3/lib64" -lcrypto -lssl
+            LIBS += -L"../../build-PKILib-Desktop_Qt_5_13_2_MinGW_64_bit-Debug" -lPKILib -lws2_32
+            LIBS += -L"../../lib/win64/debug/openssl3/lib64" -lcrypto -lssl
+            LIBS += -L"../../win64"
         } else {
             INCLUDEPATH += "../../PKILib/lib/win64/"$${OPENSSL_NAME}"/include"
-            LIBS += -L"../../build-PKILib-Desktop_Qt_5_13_2_MinGW_64_bit-Release/release" -lPKILib -lws2_32
-            LIBS += -L"../../PKILib/lib/win64/openssl3/lib64" -lcrypto -lssl
+            LIBS += -L"../../build-PKILib-Desktop_Qt_5_13_2_MinGW_64_bit-Release" -lPKILib -lws2_32
+            LIBS += -L"../../lib/win64/openssl3/lib64" -lcrypto -lssl
+            LIBS += -L"../../win64"
         }
 
         INCLUDEPATH += "C:\msys64\mingw64\include"

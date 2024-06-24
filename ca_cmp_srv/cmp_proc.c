@@ -203,16 +203,18 @@ int makeCert( JDB_CertProfile *pDBCertProfile, JDB_ProfileExtList *pDBProfileExt
         if( strcasecmp( pDBCurList->sProfileExt.pSN, JS_PKI_ExtNameSKI ) == 0 )
         {
             BIN binPub = {0,0};
-            char    sHexID[128];
+            BIN binPubKeyID = {0,0};
+            char    *pPubKeyIDHex = NULL;
 
-            memset( sHexID, 0x00, sizeof(sHexID));
             JS_BIN_decodeHex(pIssueCertInfo->pPublicKey, &binPub);
-            ret = JS_PKI_getKeyIdentifier( &binPub, sHexID );
+            ret = JS_PKI_getKeyIdentifier( &binPub, &binPubKeyID );
             if( ret != 0 )
             {
                 LE( "fail to get KeyIdentifier: %d", ret );
                 goto end;
             }
+
+            JS_BIN_encodeHex( &binPubKeyID, &pPubKeyIDHex );
 
             if( pDBCurList->sProfileExt.pValue )
             {
@@ -220,8 +222,9 @@ int makeCert( JDB_CertProfile *pDBCertProfile, JDB_ProfileExtList *pDBProfileExt
                 pDBCurList->sProfileExt.pValue = NULL;
             }
 
-            pDBCurList->sProfileExt.pValue = JS_strdup( sHexID );
+            pDBCurList->sProfileExt.pValue = pPubKeyIDHex;
             JS_BIN_reset( &binPub );
+            JS_BIN_reset( &binPubKeyID );
         }
         else if( strcasecmp( pDBCurList->sProfileExt.pSN, JS_PKI_ExtNameAKI ) == 0 )
         {
@@ -717,7 +720,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
 
     if( g_nMsgDump ) msgDump( 1, nReqType, pReq );
 
-    /* KID 값은 RefCode 값이거나 클라이언트 인증서의 KeyIdentifier 값이 셋팅 됨 */
+    /* KID 값은 RefNum 값이거나 클라이언트 인증서의 KeyIdentifier 값이 셋팅 됨 */
     if( pASenderKID == NULL )
     {
         LE( "There is no SendKID value" );
@@ -751,7 +754,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
         ret = JS_DB_getCertByKeyHash( db, pKID, &sDBCert );
         if( ret <= 0 )
         {
-            LE( "There is no certificate data(%s)", pKID );
+            LE( "There is no certificate data(KID:%s)", pKID );
             ret = -1;
             goto end;
         }

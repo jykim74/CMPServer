@@ -46,6 +46,8 @@ int msgDump( int nIsReq, int nReqType, const BIN *pMsg )
         pName = "ir";
     else if( nReqType == OSSL_CMP_PKIBODY_CR )
         pName = "cr";
+    else if( nReqType == OSSL_CMP_PKIBODY_P10CR )
+        pName = "p10cr";
     else if( nReqType == OSSL_CMP_PKIBODY_KUR )
         pName = "kur";
     else if( nReqType == OSSL_CMP_PKIBODY_RR )
@@ -742,7 +744,14 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
         }
 
         JS_BIN_encodeHex( &binKID, &pKID );
-        JS_DB_getCertByKeyHash( db, pKID, &sDBCert );
+        ret = JS_DB_getCertByKeyHash( db, pKID, &sDBCert );
+        if( ret <= 0 )
+        {
+            LE( "There is no certificate data(%s)", pKID );
+            ret = -1;
+            goto end;
+        }
+
         JS_BIN_decodeHex( sDBCert.pCert, &binCert );
 
         pPosCert = binCert.pVal;
@@ -754,7 +763,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
         JS_BIN_reset( &binCert );
     }
 
-    if( nReqType == OSSL_CMP_PKIBODY_IR || nReqType == OSSL_CMP_PKIBODY_CR )
+    if( nReqType == OSSL_CMP_PKIBODY_IR || nReqType == OSSL_CMP_PKIBODY_CR || nReqType == OSSL_CMP_PKIBODY_P10CR )
     {
         LV( "Req : IR or CR" );
         BIN binNewCert = {0,0};

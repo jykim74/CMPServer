@@ -313,12 +313,13 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
         char *pPubKey = NULL;
         char *pHexCert = NULL;
 
-        char    sKeyID[128];
+//        char    sKeyID[128];
+        BIN binKeyID = {0,0};
+        char *pKeyIDHex = NULL;
 
         memset( &sIssueCertInfo, 0x00, sizeof(sIssueCertInfo));
         memset( &sNewCertInfo, 0x00, sizeof(sNewCertInfo));
         memset( &sDBNewCert, 0x00, sizeof(sDBNewCert));
-        memset( sKeyID, 0x00, sizeof(sKeyID));
 
         OSSL_CRMF_MSG *pMsg = sk_OSSL_CRMF_MSG_value( pMsgs, i );
         OSSL_CRMF_CERTTEMPLATE *pTmpl = OSSL_CRMF_MSG_get0_tmpl( pMsg );
@@ -334,12 +335,10 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
 
 
         nKeyType = JS_PKI_getPubKeyType( &binPub );
-        JS_PKI_getKeyIdentifier( &binPub, sKeyID );
+        JS_PKI_getKeyIdentifier( &binPub, &binKeyID );
         JS_BIN_encodeHex( &binPub, &pPubKey );
+        JS_BIN_encodeHex( &binKeyID, &pKeyIDHex );
 
-
-//        int nSeq = JS_DB_getSeq( db, "TB_CERT" );
-//        nSeq++;
         int nSeq = JS_DB_getNextVal( db, "TB_CERT" );
 
         sprintf( sSerial, "%d", nSeq );
@@ -395,7 +394,7 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
                        0,
                        sNewCertInfo.pSerial,
                        sNewCertInfo.pDNHash,
-                       sKeyID,
+                       pKeyIDHex,
                        "" );
 
         ret = JS_DB_addCert( db, &sDBNewCert );
@@ -416,6 +415,8 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
         JS_PKI_resetIssueCertInfo( &sIssueCertInfo );
         JS_PKI_resetCertInfo( &sNewCertInfo);
         JS_DB_resetCert( &sDBNewCert);
+        JS_BIN_reset( &binKeyID );
+        if( pKeyIDHex ) JS_free( pKeyIDHex );
         if( pPubKey ) JS_free( pPubKey );
         if( pHexCert ) JS_free( pHexCert );
 
@@ -488,6 +489,8 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
         JIssueCertInfo       sIssueCertInfo;
         JCertInfo       sNewCertInfo;
         JDB_Cert        sDBNewCert;
+        BIN binPubKeyID = {0,0};
+        char *pKeyIDHex = NULL;
 
         int nKeyType = -1;
         char sSerial[128];
@@ -497,12 +500,10 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
         char sSubjectName[1024];
         char *pPubKey = NULL;
         char *pHexCert = NULL;
-        char sKeyID[128];
 
         memset( &sIssueCertInfo, 0x00, sizeof(sIssueCertInfo));
         memset( &sNewCertInfo, 0x00, sizeof(sNewCertInfo));
         memset( &sDBNewCert, 0x00, sizeof(sDBNewCert));
-        memset( sKeyID, 0x00, sizeof(sKeyID));
 
         OSSL_CRMF_MSG *pMsg = sk_OSSL_CRMF_MSG_value( pMsgs, i );
         OSSL_CRMF_CERTTEMPLATE *pTmpl = OSSL_CRMF_MSG_get0_tmpl( pMsg );
@@ -518,7 +519,8 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
 
         nKeyType = JS_PKI_getPubKeyType( &binPub );
         JS_BIN_encodeHex( &binPub, &pPubKey );
-        JS_PKI_getKeyIdentifier( &binPub, sKeyID );
+        JS_PKI_getKeyIdentifier( &binPub, &binPubKeyID );
+        JS_BIN_encodeHex( &binPubKeyID, &pKeyIDHex );
 
  //       int nSeq = JS_DB_getSeq( db, "TB_CERT" );
         int nSeq = JS_DB_getLastVal( db, "TB_CERT" );
@@ -575,7 +577,7 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
                        0,
                        sNewCertInfo.pSerial,
                        sNewCertInfo.pDNHash,
-                       sKeyID,
+                       pKeyIDHex,
                        "" );
 
         ret = JS_DB_addCert( db, &sDBNewCert );
@@ -585,9 +587,11 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
         }
 
         JS_BIN_reset( &binPub );
+        JS_BIN_reset( &binPubKeyID );
         JS_PKI_resetIssueCertInfo( &sIssueCertInfo );
         JS_PKI_resetCertInfo( &sNewCertInfo);
         JS_DB_resetCert( &sDBNewCert);
+        if( pKeyIDHex ) JS_free( pKeyIDHex );
         if( pPubKey ) JS_free( pPubKey );
         if( pHexCert ) JS_free( pHexCert );
 

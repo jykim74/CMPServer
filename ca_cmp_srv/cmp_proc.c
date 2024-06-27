@@ -433,6 +433,165 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
 
 }
 
+int procP10CR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN *pNewCert )
+{
+    int ret = 0;
+    OSSL_CRMF_MSGS  *pMsgs = (OSSL_CRMF_MSGS *)pBody;
+    const char *pHash = "SHA1";
+
+    JDB_CertProfile sDBCertProfile;
+    JDB_ProfileExtList *pDBProfileExtList = NULL;
+
+    if( pDBUser == NULL )
+    {
+        LE( "DBUser is null" );
+        return -1;
+    }
+
+    memset( &sDBCertProfile, 0x00, sizeof(sDBCertProfile));
+    JS_DB_getCertProfile( db, g_nCertProfileNum, &sDBCertProfile );
+    JS_DB_getCertProfileExtList( db, sDBCertProfile.nNum, &pDBProfileExtList );
+
+
+    int nNum  = sk_OSSL_CRMF_MSG_num( pMsgs );
+    for( int i = 0; i < nNum; i++ )
+    {
+        BIN binPub = {0,0};
+        unsigned char *pOut = NULL;
+        int nOutLen = 0;
+        JIssueCertInfo       sIssueCertInfo;
+        JCertInfo       sNewCertInfo;
+        JDB_Cert        sDBNewCert;
+
+        int nKeyType = -1;
+        char sSerial[128];
+
+        long uNotBefore = -1;
+        long uNotAfter = -1;
+        char sSubjectName[1024];
+        char *pPubKey = NULL;
+        char *pHexCert = NULL;
+
+        //        char    sKeyID[128];
+        BIN binKeyID = {0,0};
+        char *pKeyIDHex = NULL;
+
+        memset( &sIssueCertInfo, 0x00, sizeof(sIssueCertInfo));
+        memset( &sNewCertInfo, 0x00, sizeof(sNewCertInfo));
+        memset( &sDBNewCert, 0x00, sizeof(sDBNewCert));
+
+
+
+        OSSL_CRMF_MSG *pMsg = sk_OSSL_CRMF_MSG_value( pMsgs, i );
+        OSSL_CRMF_CERTTEMPLATE *pTmpl = OSSL_CRMF_MSG_get0_tmpl( pMsg );
+
+#ifdef CMP_MOD
+        X509_PUBKEY *pXPubKey = OSSL_CRMF_CERTTEMPLATE_get0_publicKey( pTmpl );
+#else
+        X509_PUBKEY *pXPubKey = JS_OSSL_CRMF_CERTTEMPLATE_get0_publicKey( pTmpl );
+#endif
+
+        nOutLen = i2d_X509_PUBKEY( pXPubKey, &pOut );
+        JS_BIN_set( &binPub, pOut, nOutLen );
+
+
+
+        nKeyType = JS_PKI_getPubKeyType( &binPub );
+        JS_PKI_getKeyIdentifier( &binPub, &binKeyID );
+        JS_BIN_encodeHex( &binPub, &pPubKey );
+        JS_BIN_encodeHex( &binKeyID, &pKeyIDHex );
+
+        int nSeq = JS_DB_getNextVal( db, "TB_CERT" );
+
+        sprintf( sSerial, "%d", nSeq );
+
+        sprintf( sSubjectName, "CN=%s,C=kr", pDBUser->pName );
+        time_t now_t = time(NULL);
+
+        if( sDBCertProfile.nNotBefore <= 0 )
+        {
+            uNotBefore = 0;
+            uNotAfter = sDBCertProfile.nNotAfter * 60 * 60 * 24;
+            uNotBefore = 0;
+        }
+        else
+        {
+            uNotBefore = sDBCertProfile.nNotBefore - now_t;
+            uNotAfter = sDBCertProfile.nNotAfter - now_t;
+        }
+
+        JS_PKI_setIssueCertInfo( &sIssueCertInfo,
+                                sDBCertProfile.nVersion,
+                                sSerial,
+                                sDBCertProfile.pHash,
+                                sSubjectName,
+                                uNotBefore,
+                                uNotAfter,
+                                nKeyType,
+                                pPubKey );
+
+
+        ret = makeCert( &sDBCertProfile, pDBProfileExtList, &sIssueCertInfo, pNewCert );
+        if( ret != 0 )
+        {
+            JS_LOG_write( JS_LOG_LEVEL_ERROR, "fail to make certificate(ret:%d)", ret );
+            JS_PKI_resetIssueCertInfo( &sIssueCertInfo );
+            break;
+        }
+
+        JS_BIN_encodeHex( pNewCert, &pHexCert );
+
+        JS_PKI_getCertInfo( pNewCert, &sNewCertInfo, NULL );
+        JS_DB_setCert( &sDBNewCert,
+                      -1,
+                      now_t,
+                      -1,
+                      pDBUser->nNum,
+                      sNewCertInfo.pSignAlgorithm,
+                      pHexCert,
+                      0,
+                      0,
+                      g_nIssuerNum,
+                      sNewCertInfo.pSubjectName,
+                      0,
+                      sNewCertInfo.pSerial,
+                      sNewCertInfo.pDNHash,
+                      pKeyIDHex,
+                      "" );
+
+        ret = JS_DB_addCert( db, &sDBNewCert );
+        if( ret == 0 )
+        {
+            if( pDBUser->pAuthCode )
+            {
+                JS_free( pDBUser->pAuthCode );
+                pDBUser->pAuthCode = NULL;
+            }
+
+            pDBUser->nStatus = JS_USER_STATUS_ISSUED;
+            JS_DB_modUser( db, pDBUser->nNum, pDBUser );
+            JS_DB_addAuditInfo( db, JS_GEN_KIND_CMP_SRV, JS_GEN_OP_CMP_IR, "Admin", NULL );
+        }
+
+        JS_BIN_reset( &binPub );
+        JS_PKI_resetIssueCertInfo( &sIssueCertInfo );
+        JS_PKI_resetCertInfo( &sNewCertInfo);
+        JS_DB_resetCert( &sDBNewCert);
+        JS_BIN_reset( &binKeyID );
+        if( pKeyIDHex ) JS_free( pKeyIDHex );
+        if( pPubKey ) JS_free( pPubKey );
+        if( pHexCert ) JS_free( pHexCert );
+
+        break;
+    }
+
+    JS_DB_resetCertProfile( &sDBCertProfile );
+    if( pDBProfileExtList ) JS_DB_resetProfileExtList( &pDBProfileExtList );
+
+    return ret;
+
+}
+
 int procRR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody )
 {
     OSSL_CRMF_CERTID    *pCertID = NULL;
@@ -770,7 +929,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
         JS_BIN_reset( &binCert );
     }
 
-    if( nReqType == OSSL_CMP_PKIBODY_IR || nReqType == OSSL_CMP_PKIBODY_CR || nReqType == OSSL_CMP_PKIBODY_P10CR )
+    if( nReqType == OSSL_CMP_PKIBODY_IR || nReqType == OSSL_CMP_PKIBODY_CR  )
     {
         LV( "Req : IR or CR" );
         BIN binNewCert = {0,0};
@@ -778,6 +937,19 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
         const unsigned char *pPosNewCert = NULL;
         ret = procIR( db, pCTX, &sDBUser, pBody, &binNewCert );
         if( ret != 0 ) LE( "fail procIR: %d", ret );
+
+        pPosNewCert = binNewCert.pVal;
+        pXNewCert = d2i_X509( NULL, &pPosNewCert, binNewCert.nLen );
+        ossl_cmp_mock_srv_set1_certOut( pSrvCTX, pXNewCert );
+    }
+    else if( nReqType == OSSL_CMP_PKIBODY_P10CR )
+    {
+        LV( "Req : P10CR" );
+        BIN binNewCert = {0,0};
+        X509 *pXNewCert = NULL;
+        const unsigned char *pPosNewCert = NULL;
+        ret = procP10CR( db, pCTX, &sDBUser, pBody, &binNewCert );
+        if( ret != 0 ) LE( "fail procP10CR: %d", ret );
 
         pPosNewCert = binNewCert.pVal;
         pXNewCert = d2i_X509( NULL, &pPosNewCert, binNewCert.nLen );

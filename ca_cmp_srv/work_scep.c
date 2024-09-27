@@ -251,7 +251,7 @@ int workPKIOperation( sqlite3* db, const BIN *pPKIReq, BIN *pCertRsp )
         goto end;
     }
 
-    ret = JS_PKCS7_makeEnvelopedData( &binResData, &binSignCert, &binEnvData );
+    ret = JS_PKCS7_makeEnvelopedData( "aes-256-cbc", &binResData, &binSignCert, &binEnvData );
 
     JS_PKI_genRandom( 16, &binSrvSenderNonce );
     ret = JS_SCEP_makeSignedData( JS_SCEP_REPLY_CERTREP,

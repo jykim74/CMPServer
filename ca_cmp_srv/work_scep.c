@@ -181,7 +181,7 @@ int runGetCRL( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
     ret = JS_DB_getLatestCRL( db, g_nIssuerNum, &sDBCRL );
     if( ret < 1 )
     {
-        LE( "fail to get latest CRL" );
+        LE( "fail to get latest CRL [IssuerNum: %d]", g_nIssuerNum );
         goto end;
     }
 
@@ -228,21 +228,25 @@ int workPKIOperation( sqlite3* db, const BIN *pPKIReq, BIN *pCertRsp )
 
     if( nType == JS_SCEP_REQUEST_PKCSREQ )
     {
+        LI( "REQUEST_PKCSREQ" );
         ret = runPKIReq( db, &binSignCert, &binDevData, &binResData );
         if( ret == 0 ) JS_DB_addAuditInfo( db, JS_GEN_KIND_CMP_SRV, JS_GEN_OP_SCEP_PKCS_REQ, "Admin", NULL );
     }
     else if( nType == JS_SCEP_REQUEST_GETCRL )
     {
+        LI( "REQUEST_GETCRL" );
         ret = runGetCRL( db, &binSignCert, &binDevData, &binResData );
         if( ret == 0 ) JS_DB_addAuditInfo( db, JS_GEN_KIND_CMP_SRV, JS_GEN_OP_SCEP_GET_CRL, "Admin", NULL );
     }
     else if( nType == JS_SCEP_REQUEST_GETCERT )
     {
-
+        LI( "REQUEST_GETCERT" );
+        LE( "Not implemented" );
     }
     else if( nType == JS_SCEP_REQUEST_GETCERTINIT )
     {
-
+        LI( "REQUEST_GETCERTINIT" );
+        LE( "Not implemented" );
     }
     else
     {

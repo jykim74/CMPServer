@@ -481,7 +481,6 @@ int procP10CR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, 
         memset( &sDBNewCert, 0x00, sizeof(sDBNewCert));
 
 
-
         OSSL_CRMF_MSG *pMsg = sk_OSSL_CRMF_MSG_value( pMsgs, i );
         OSSL_CRMF_CERTTEMPLATE *pTmpl = OSSL_CRMF_MSG_get0_tmpl( pMsg );
 
@@ -493,8 +492,6 @@ int procP10CR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, 
 
         nOutLen = i2d_X509_PUBKEY( pXPubKey, &pOut );
         JS_BIN_set( &binPub, pOut, nOutLen );
-
-
 
         nKeyType = JS_PKI_getPubKeyType( &binPub );
         JS_PKI_getKeyIdentifier( &binPub, &binKeyID );

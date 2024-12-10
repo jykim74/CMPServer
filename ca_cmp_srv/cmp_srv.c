@@ -283,17 +283,21 @@ int loginHSM()
     value = JS_CFG_getValue( g_pEnvList, "CMP_HSM_PIN" );
     if( value == NULL )
     {
-        LE( "You have to set 'CMP_HSM_PIN'" );
-        return -1;
-    }
-
-    if( strncasecmp( value, "{ENC}", 5 ) == 0 )
-    {
-        JS_GEN_decPassword( value, sPIN );
+        ret = JS_GEN_getPassword( sPIN );
+        if( ret != 0 )
+        {
+            LE( "You have to set 'CMP_HSM_PIN'" );
+            return -1;
+        }
     }
     else
     {
-        memcpy( sPIN, value, strlen(value) );
+        memcpy( sPIN, value, strlen(value));
+    }
+
+    if( strncasecmp( sPIN, "{ENC}", 5 ) == 0 )
+    {
+        JS_GEN_decPassword( sPIN, sPIN );
     }
 
     value = JS_CFG_getValue( g_pEnvList, "CMP_HSM_KEY_ID" );
@@ -399,14 +403,14 @@ int readPriKeyDB( sqlite3 *db )
             LE( "You have to set 'CA_PRIKEY_PASSWD'" );
             return -1;
         }
+        else
+        {
+            memcpy( sPasswd, value, strlen(value));
+        }
 
         if( strncasecmp( value, "{ENC}", 5 ) == 0 )
         {
             JS_GEN_decPassword( value, sPasswd );
-        }
-        else
-        {
-            memcpy( sPasswd, value, strlen(value));
         }
 
         JS_BIN_decodeHex( sKeyPair.pPrivate, &binEnc );
@@ -459,17 +463,21 @@ int readPriKey()
         value = JS_CFG_getValue( g_pEnvList, "CA_PRIKEY_PASSWD" );
         if( value == NULL )
         {
-            LE( "You have to set 'CA_PRIKEY_PASSWD'" );
-            return -1;
-        }
-
-        if( strncasecmp( value, "{ENC}", 5 ) == 0 )
-        {
-            JS_GEN_decPassword( value, sPasswd );
+            ret = JS_GEN_getPassword( sPasswd );
+            if( ret != 0 )
+            {
+                LE( "You have to set 'CA_PRIKEY_PASSWD'" );
+                return -1;
+            }
         }
         else
         {
             memcpy( sPasswd, value, strlen(value));
+        }
+
+        if( strncasecmp( value, "{ENC}", 5 ) == 0 )
+        {
+            JS_GEN_decPassword( sPasswd, sPasswd );
         }
 
         value = JS_CFG_getValue( g_pEnvList, "CA_PRIKEY_PATH" );

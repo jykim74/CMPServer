@@ -886,6 +886,7 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
 
     JS_BIN_set( &binKID, pASenderKID->data, pASenderKID->length );
     JS_BIN_string( &binKID, &pKID );
+//    JS_BIN_encodeHex( &binKID, &pKID );
     LD( "Send KID: %s", pKID );
 
     ret = JS_DB_getUserByRefNum( db, pKID, &sDBUser );

@@ -277,7 +277,7 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
 {
     int ret = 0;
     OSSL_CRMF_MSGS  *pMsgs = (OSSL_CRMF_MSGS *)pBody;
-    const char *pHash = "SHA1";
+//    const char *pHash = "SHA1";
 
     JDB_CertProfile sDBCertProfile;
     JDB_ProfileExtList *pDBProfileExtList = NULL;
@@ -433,7 +433,7 @@ int procP10CR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, 
 {
     int ret = 0;
     OSSL_CRMF_MSGS  *pMsgs = (OSSL_CRMF_MSGS *)pBody;
-    const char *pHash = "SHA1";
+//    const char *pHash = "SHA1";
 
     JDB_CertProfile sDBCertProfile;
     JDB_ProfileExtList *pDBProfileExtList = NULL;
@@ -871,7 +871,6 @@ int procCMP( sqlite3* db, const BIN *pReq, BIN *pRsp )
 #endif
 
     if( g_nMsgDump ) msgDump( 1, nReqType, pReq );
-
     /* KID 값은 RefNum 값이거나 클라이언트 인증서의 KeyIdentifier 값이 셋팅 됨 */
     if( pASenderKID == NULL )
     {

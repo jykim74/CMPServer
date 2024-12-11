@@ -25,9 +25,6 @@ extern BIN     g_binCAPriKey;
 extern  JP11_CTX        *g_pP11CTX;
 extern int g_nMsgDump;
 
-extern BIN     g_binSignCert;
-extern BIN     g_binSignPri;
-
 extern int      g_nCertProfileNum;
 extern int      g_nIssuerNum;
 
@@ -94,7 +91,6 @@ OSSL_CMP_SRV_CTX* setupServerCTX()
     X509_STORE          *pXStore = NULL;
 
     unsigned char *pPosCACert = g_binCACert.pVal;
-    unsigned char *pPosCAPriKey = g_binCAPriKey.pVal;
     unsigned char *pPosRootCACert = g_binRootCert.pVal;
 
     int nStatus = 0;
@@ -109,7 +105,7 @@ OSSL_CMP_SRV_CTX* setupServerCTX()
 
     pXRootCACert = d2i_X509( NULL, &pPosRootCACert, g_binRootCert.nLen );
     pXCACert = d2i_X509( NULL, &pPosCACert, g_binCACert.nLen );
-    pECAPriKey = d2i_PrivateKey( EVP_PKEY_RSA, NULL, &pPosCAPriKey, g_binCAPriKey.nLen );
+    pECAPriKey = JS_PKI_getEVPPrivateKey( &g_binCAPriKey );
 
     pXStore = X509_STORE_new();
     X509_STORE_add_cert( pXStore, pXRootCACert );
@@ -117,10 +113,10 @@ OSSL_CMP_SRV_CTX* setupServerCTX()
     OSSL_CMP_CTX_set0_trustedStore( pCTX, pXStore );
 
     OSSL_CMP_CTX_set1_cert( pCTX, pXCACert );
+    OSSL_CMP_CTX_set1_pkey( pCTX, pECAPriKey );
 
     X509_free( pXCACert );
-
-    OSSL_CMP_CTX_set1_pkey( pCTX, pECAPriKey );
+    EVP_PKEY_free( pECAPriKey );
 
     ossl_cmp_mock_srv_set_checkAfterTime( pSrvCTX, 10 );
     ossl_cmp_mock_srv_set_statusInfo( pSrvCTX, nStatus, nFailInfo, "Status" );

@@ -26,6 +26,9 @@ BIN     g_binCAPriKey = {0,0};
 JP11_CTX        *g_pP11CTX = NULL;
 int     g_nMsgDump = 0;
 
+BIN     g_binRSACert = {0,0};
+BIN     g_binRSAPriKey = {0,0};
+
 int     g_nCertProfileNum = -1;
 int     g_nIssuerNum = -1;
 int     g_nPort = JS_CMP_PORT;

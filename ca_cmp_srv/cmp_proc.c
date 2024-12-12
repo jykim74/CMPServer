@@ -105,7 +105,18 @@ OSSL_CMP_SRV_CTX* setupServerCTX()
 
     pXRootCACert = d2i_X509( NULL, &pPosRootCACert, g_binRootCert.nLen );
     pXCACert = d2i_X509( NULL, &pPosCACert, g_binCACert.nLen );
-    pECAPriKey = JS_PKI_getEVPPrivateKey( &g_binCAPriKey );
+
+    if( g_pP11CTX )
+    {
+        BIN binPub = {0,0};
+        JS_PKI_getPubKeyFromCert( &g_binCACert, &binPub );
+        pECAPriKey = JS_PKI_getEVPPrivateKeyFromP11( &g_binCAPriKey, &binPub, g_pP11CTX);
+        JS_BIN_reset( &binPub );
+    }
+    else
+    {
+        pECAPriKey = JS_PKI_getEVPPrivateKey( &g_binCAPriKey );
+    }
 
     pXStore = X509_STORE_new();
     X509_STORE_add_cert( pXStore, pXRootCACert );

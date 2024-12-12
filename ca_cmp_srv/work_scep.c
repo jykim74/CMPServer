@@ -22,6 +22,8 @@ extern BIN     g_binCAPriKey;
 extern BIN     g_binSignCert;
 extern BIN     g_binSignPri;
 
+extern JP11_CTX *g_pP11CTX;
+
 extern int      g_nCertProfileNum;
 extern int      g_nIssuerNum;
 
@@ -219,7 +221,15 @@ int workPKIOperation( sqlite3* db, const BIN *pPKIReq, BIN *pCertRsp )
         goto end;
     }
 
-    ret = JS_PKCS7_makeDevelopedData( &binData, &g_binCAPriKey, &g_binCACert, &binDevData );
+    if( g_pP11CTX )
+    {
+        ret = JS_PKCS7_makeDevelopedDataByP11( &binData, &g_binCAPriKey, g_pP11CTX, &g_binCACert, &binDevData );
+    }
+    else
+    {
+        ret = JS_PKCS7_makeDevelopedData( &binData, &g_binCAPriKey, &g_binCACert, &binDevData );
+    }
+
     if( ret != 0 )
     {
         LE( "fail to develop data : %d", ret );
@@ -258,7 +268,24 @@ int workPKIOperation( sqlite3* db, const BIN *pPKIReq, BIN *pCertRsp )
     ret = JS_PKCS7_makeEnvelopedData( "aes-256-cbc", &binResData, &binSignCert, &binEnvData );
 
     JS_PKI_genRandom( 16, &binSrvSenderNonce );
-    ret = JS_SCEP_makeSignedData( JS_SCEP_REPLY_CERTREP,
+
+    if( g_pP11CTX )
+    {
+        ret = JS_SCEP_makeSignedDataByP11( JS_SCEP_REPLY_CERTREP,
+                                     "SHA256",
+                                     &binEnvData,
+                                     &g_binCAPriKey,
+                                     g_pP11CTX,
+                                     &g_binCACert,
+                                     &binSrvSenderNonce,
+                                     &binSenderNonce,
+                                     pTransID,
+                                     "0",
+                                     pCertRsp );
+    }
+    else
+    {
+        ret = JS_SCEP_makeSignedData( JS_SCEP_REPLY_CERTREP,
                             "SHA256",
                             &binEnvData,
                             &g_binCAPriKey,
@@ -268,6 +295,7 @@ int workPKIOperation( sqlite3* db, const BIN *pPKIReq, BIN *pCertRsp )
                             pTransID,
                             "0",
                             pCertRsp );
+    }
 
 end :
     JS_BIN_reset( &binSignCert );

@@ -355,18 +355,34 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
 
         sprintf( sSubjectName, "CN=%s,C=kr", pDBUser->pName );
         time_t now_t = time(NULL);
+        JS_PKI_getPeriod( sDBCertProfile.nNotBefore,
+                         sDBCertProfile.nNotAfter,
+                         now_t,
+                         &uNotBefore,
+                         &uNotAfter );
 
+        /*
         if( sDBCertProfile.nNotBefore <= 0 )
         {
             uNotBefore = 0;
             uNotAfter = sDBCertProfile.nNotAfter * 60 * 60 * 24;
+        }
+        else if( sDBCertProfile.nNotBefore == 1 )
+        {
             uNotBefore = 0;
+            uNotAfter = sDBCertProfile.nNotAfter * 60 * 60 * 24 * 30;
+        }
+        else if( sDBCertProfile.nNotBefore == 2 )
+        {
+            uNotBefore = 0;
+            uNotAfter = sDBCertProfile.nNotAfter * 60 * 60 * 24 * 365;
         }
         else
         {
             uNotBefore = sDBCertProfile.nNotBefore - now_t;
             uNotAfter = sDBCertProfile.nNotAfter - now_t;
         }
+        */
 
         JS_PKI_setIssueCertInfo( &sIssueCertInfo,
                                 sDBCertProfile.nVersion,
@@ -512,18 +528,33 @@ int procP10CR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, 
         sprintf( sSubjectName, "CN=%s,C=kr", pDBUser->pName );
         time_t now_t = time(NULL);
 
+        JS_PKI_getPeriod( sDBCertProfile.nNotBefore,
+                         sDBCertProfile.nNotAfter,
+                         now_t,
+                         &uNotBefore,
+                         &uNotAfter );
+/*
         if( sDBCertProfile.nNotBefore <= 0 )
         {
             uNotBefore = 0;
             uNotAfter = sDBCertProfile.nNotAfter * 60 * 60 * 24;
+        }
+        else if( sDBCertProfile.nNotBefore == 1 )
+        {
             uNotBefore = 0;
+            uNotAfter = sDBCertProfile.nNotAfter * 60 * 60 * 24 * 30;
+        }
+        else if( sDBCertProfile.nNotBefore == 2 )
+        {
+            uNotBefore = 0;
+            uNotAfter = sDBCertProfile.nNotAfter * 60 * 60 * 24 * 365;
         }
         else
         {
             uNotBefore = sDBCertProfile.nNotBefore - now_t;
             uNotAfter = sDBCertProfile.nNotAfter - now_t;
         }
-
+*/
         JS_PKI_setIssueCertInfo( &sIssueCertInfo,
                                 sDBCertProfile.nVersion,
                                 sSerial,
@@ -695,17 +726,33 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
         sprintf( sSubjectName, "%s", pDBCert->pSubjectDN );
         time_t now_t = time(NULL);
 
+        JS_PKI_getPeriod( sDBCertProfile.nNotBefore,
+                         sDBCertProfile.nNotAfter,
+                         now_t,
+                         &uNotBefore,
+                         &uNotAfter );
+/*
         if( sDBCertProfile.nNotBefore <= 0 )
         {
             uNotBefore = 0;
             uNotAfter = sDBCertProfile.nNotAfter * 60 * 60 * 24;
+        }
+        else if( sDBCertProfile.nNotBefore == 1 )
+        {
             uNotBefore = 0;
+            uNotAfter = sDBCertProfile.nNotAfter * 60 * 60 * 24 * 30;
+        }
+        else if( sDBCertProfile.nNotBefore == 2 )
+        {
+            uNotBefore = 0;
+            uNotAfter = sDBCertProfile.nNotAfter * 60 * 60 * 24 * 365;
         }
         else
         {
             uNotBefore = sDBCertProfile.nNotBefore - now_t;
             uNotAfter = sDBCertProfile.nNotAfter - now_t;
         }
+*/
 
         JS_PKI_setIssueCertInfo( &sIssueCertInfo,
                                 sDBCertProfile.nVersion,

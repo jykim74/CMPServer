@@ -406,14 +406,14 @@ int readPriKeyDB( sqlite3 *db )
             LE( "You have to set 'CA_PRIKEY_PASSWD'" );
             return -1;
         }
-        else
-        {
-            memcpy( sPasswd, value, strlen(value));
-        }
 
         if( strncasecmp( value, "{ENC}", 5 ) == 0 )
         {
             JS_GEN_decPassword( value, sPasswd );
+        }
+        else
+        {
+            memcpy( sPasswd, value, strlen(value));
         }
 
         JS_BIN_decodeHex( sKeyPair.pPrivate, &binEnc );
@@ -480,7 +480,7 @@ int readPriKey()
 
         if( strncasecmp( value, "{ENC}", 5 ) == 0 )
         {
-            JS_GEN_decPassword( sPasswd, sPasswd );
+            JS_GEN_decPassword( value, sPasswd );
         }
 
         value = JS_CFG_getValue( g_pEnvList, "CA_PRIKEY_PATH" );

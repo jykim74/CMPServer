@@ -355,8 +355,8 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
 
         sprintf( sSubjectName, "CN=%s,C=kr", pDBUser->pName );
         time_t now_t = time(NULL);
-        JS_PKI_getPeriod( sDBCertProfile.nNotBefore,
-                         sDBCertProfile.nNotAfter,
+        JS_PKI_getPeriod( sDBCertProfile.tNotBefore,
+                         sDBCertProfile.tNotAfter,
                          now_t,
                          &uNotBefore,
                          &uNotAfter );
@@ -528,8 +528,8 @@ int procP10CR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, 
         sprintf( sSubjectName, "CN=%s,C=kr", pDBUser->pName );
         time_t now_t = time(NULL);
 
-        JS_PKI_getPeriod( sDBCertProfile.nNotBefore,
-                         sDBCertProfile.nNotAfter,
+        JS_PKI_getPeriod( sDBCertProfile.tNotBefore,
+                         sDBCertProfile.tNotAfter,
                          now_t,
                          &uNotBefore,
                          &uNotAfter );
@@ -726,8 +726,8 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
         sprintf( sSubjectName, "%s", pDBCert->pSubjectDN );
         time_t now_t = time(NULL);
 
-        JS_PKI_getPeriod( sDBCertProfile.nNotBefore,
-                         sDBCertProfile.nNotAfter,
+        JS_PKI_getPeriod( sDBCertProfile.tNotBefore,
+                         sDBCertProfile.tNotAfter,
                          now_t,
                          &uNotBefore,
                          &uNotAfter );

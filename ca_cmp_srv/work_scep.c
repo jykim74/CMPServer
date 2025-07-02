@@ -35,8 +35,8 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
     JDB_CertProfile sDBCertProfile;
     JDB_ProfileExtList *pDBProfileExtList = NULL;
     JIssueCertInfo sIssueCertInfo;
-    long uNotBefore = -1;
-    long uNotAfter = -1;
+    time_t tNotBefore = -1;
+    time_t tNotAfter = -1;
 
     char    sSerial[128];
     int nSeq = 0;
@@ -68,16 +68,16 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
 
     time_t now_t = time(NULL);
 
-    if( sDBCertProfile.nNotBefore <= 0 )
+    if( sDBCertProfile.tNotBefore <= 0 )
     {
-        uNotBefore = 0;
-        uNotAfter = sDBCertProfile.nNotAfter * 60 * 60 * 24;
-        uNotBefore = 0;
+        tNotBefore = 0;
+        tNotAfter = sDBCertProfile.tNotAfter * 60 * 60 * 24;
+        tNotBefore = 0;
     }
     else
     {
-        uNotBefore = sDBCertProfile.nNotBefore - now_t;
-        uNotAfter = sDBCertProfile.nNotAfter - now_t;
+        tNotBefore = sDBCertProfile.tNotBefore - now_t;
+        tNotAfter = sDBCertProfile.tNotAfter - now_t;
     }
 
     ret = JS_PKI_getReqInfo( pData, &sReqInfo, 1, NULL );
@@ -100,8 +100,8 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
                              sSerial,
                              sDBCertProfile.pHash,
                              sReqInfo.pSubjectDN,
-                             uNotBefore,
-                             uNotAfter,
+                             tNotBefore,
+                             tNotAfter,
                              nKeyType,
                              sReqInfo.pPublicKey );
 

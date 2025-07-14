@@ -317,8 +317,8 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
         int nKeyType = -1;
         char sSerial[128];
 
-        long uNotBefore = -1;
-        long uNotAfter = -1;
+        time_t tNotBefore = 0;
+        time_t tNotAfter = 0;
         char sSubjectName[1024];
         char *pPubKey = NULL;
         char *pHexCert = NULL;
@@ -358,8 +358,8 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
         JS_PKI_getPeriod( sDBCertProfile.tNotBefore,
                          sDBCertProfile.tNotAfter,
                          now_t,
-                         &uNotBefore,
-                         &uNotAfter );
+                         &tNotBefore,
+                         &tNotAfter );
 
         /*
         if( sDBCertProfile.nNotBefore <= 0 )
@@ -389,8 +389,8 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
                                 sSerial,
                                 sDBCertProfile.pHash,
                                 sSubjectName,
-                                uNotBefore,
-                                uNotAfter,
+                                tNotBefore,
+                                tNotAfter,
                                 nKeyType,
                                 pPubKey );
 

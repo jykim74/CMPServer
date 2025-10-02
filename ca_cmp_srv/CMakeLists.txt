@@ -12,6 +12,8 @@ MESSAGE( STATUS "ca_cmp_srv Start" )
 
 # add_definitions( -DCMP_MOD )
 
+set( OPENSSL "openssl35" )
+
 add_executable(ca_cmp_srv
 	cmp_mock_srv.c
 	cmp_mock_srv.h
@@ -24,20 +26,20 @@ add_executable(ca_cmp_srv
 
 if(WIN32)
     include_directories(
-        ../../lib/win64/openssl3/include
+        ../../lib/win64/${OPENSSL}/include
         ../../PKILib
         "c:/msys64/mingw64/include" )
 
     if( CMAKE_BUILD_TYPE STREQUAL "Debug" )
         target_link_directories( ${PROJECT_NAME} PRIVATE
         ../../PKILib/build/Desktop_Qt_5_15_2_MinGW_64_bit-Debug
-        ../../lib/win64/debug/openssl3/lib64
+        ../../lib/win64/debug/${OPENSSL}/lib64
         ../../lib/win64 )
 
     elseif( CMAKE_BUILD_TYPE STREQUAL "Release" )
         target_link_directories( ${PROJECT_NAME} PRIVATE
         ../../PKILib/build/Desktop_Qt_5_13_2_MinGW_64_bit-Release
-        ../../lib/win64/openssl3/lib64
+        ../../lib/win64/${OPENSSL}/lib64
         ../../lib/win64 )
 
     endif()
@@ -47,19 +49,19 @@ if(WIN32)
 
 elseif(APPLE)
     include_directories(
-        ../../lib/mac/openssl3/include
+        ../../lib/mac/${OPENSSL}/include
         ../../PKILib
         /usr/local/include )
 
     if( CMAKE_BUILD_TYPE STREQUAL "Debug" )
         target_link_directories( ${PROJECT_NAME} PRIVATE
         ../../build-PKILib-Desktop_Qt_5_15_2_clang_64bit-Debug
-        ../../lib/mac/debug/openssl3/lib
+        ../../lib/mac/debug/${OPENSSL}/lib
         /usr/local/lib )
     elseif( CMAKE_BUILD_TYPE STREQUAL "Release" )
         target_link_directories( ${PROJECT_NAME} PRIVATE
         ../../build-PKILib-Desktop_Qt_5_15_2_clang_64bit-Release
-        ../../lib/mac/openssl3/lib
+        ../../lib/mac/${OPENSSL}/lib
         /usr/local/lib )
     endif()
 
@@ -67,19 +69,19 @@ elseif(APPLE)
         PKILib crypto ssl ltdl sqlite3 ldap lber )
 else()
     include_directories(
-        ../../lib/linux/openssl/include
+        ../../lib/linux/${OPENSSL}/include
         ../../PKILib
         "/usr/local/include" )
 
     if( CMAKE_BUILD_TYPE STREQUAL "Debug" )
         target_link_directories( ${PROJECT_NAME} PRIVATE
         ../../build-PKILib-Desktop_Qt_5_13_2_GCC_64bit-Debug
-        ../../lib/linux/debug/openssl3/lib64
+        ../../lib/linux/debug/${OPENSSL}/lib64
         "/usr/local/lib" )
     elseif( CMAKE_BUILD_TYPE STREQUAL "Release" )
         target_link_directories( ${PROJECT_NAME} PRIVATE
         ../../build-PKILib-Desktop_Qt_5_13_2_GCC_64bit-Release
-        ../../lib/linux/openssl3/lib64
+        ../../lib/linux/${OPENSSL}/lib64
         "/usr/local/lib" )
     endif()
 

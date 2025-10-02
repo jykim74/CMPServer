@@ -1,5 +1,8 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <getopt.h>
+#include <unistd.h>
 
 #include "openssl/cmp.h"
 
@@ -783,7 +786,13 @@ int main( int argc, char *argv[] )
     int     nOpt = 0;
     sqlite3*    db = NULL;
 
-    sprintf( g_sConfigPath, "%s", "../ca_cmp.cfg" );
+#if defined WIN32
+    chdir( "../../../" );
+#else
+    chdir( "../" );
+#endif
+
+    sprintf( g_sConfigPath, "%s", "ca_cmp.cfg" );
 
     while(( nOpt = getopt( argc, argv, "c:d:vh")) != -1 )
     {

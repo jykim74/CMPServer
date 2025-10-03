@@ -4,6 +4,7 @@
 #include "openssl/cmperr.h"
 
 #include "js_log.h"
+#include "js_pki.h"
 #include "js_pki_tools.h"
 
 extern const char* g_pParam;

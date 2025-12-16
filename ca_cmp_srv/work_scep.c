@@ -124,6 +124,8 @@ int runPKIReq( sqlite3* db, const BIN *pSignCert, const BIN *pData, BIN *pSigned
     JS_DB_setCert( &sNewDBcert,
                    -1,
                    now_t,
+                  tNotBefore,
+                  tNotAfter,
                    -1,
                    -1,
                    sNewCertInfo.pSignAlgorithm,

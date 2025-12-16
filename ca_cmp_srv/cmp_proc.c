@@ -361,29 +361,6 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
                          &tNotBefore,
                          &tNotAfter );
 
-        /*
-        if( sDBCertProfile.nNotBefore <= 0 )
-        {
-            uNotBefore = 0;
-            uNotAfter = sDBCertProfile.nNotAfter * 60 * 60 * 24;
-        }
-        else if( sDBCertProfile.nNotBefore == 1 )
-        {
-            uNotBefore = 0;
-            uNotAfter = sDBCertProfile.nNotAfter * 60 * 60 * 24 * 30;
-        }
-        else if( sDBCertProfile.nNotBefore == 2 )
-        {
-            uNotBefore = 0;
-            uNotAfter = sDBCertProfile.nNotAfter * 60 * 60 * 24 * 365;
-        }
-        else
-        {
-            uNotBefore = sDBCertProfile.nNotBefore - now_t;
-            uNotAfter = sDBCertProfile.nNotAfter - now_t;
-        }
-        */
-
         JS_PKI_setIssueCertInfo( &sIssueCertInfo,
                                 sDBCertProfile.nVersion,
                                 sSerial,
@@ -409,6 +386,8 @@ int procIR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, BIN
         JS_DB_setCert( &sDBNewCert,
                        -1,
                        now_t,
+                      tNotBefore,
+                      tNotAfter,
                        -1,
                        pDBUser->nNum,
                        sNewCertInfo.pSignAlgorithm,
@@ -533,28 +512,7 @@ int procP10CR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, 
                          now_t,
                          &uNotBefore,
                          &uNotAfter );
-/*
-        if( sDBCertProfile.nNotBefore <= 0 )
-        {
-            uNotBefore = 0;
-            uNotAfter = sDBCertProfile.nNotAfter * 60 * 60 * 24;
-        }
-        else if( sDBCertProfile.nNotBefore == 1 )
-        {
-            uNotBefore = 0;
-            uNotAfter = sDBCertProfile.nNotAfter * 60 * 60 * 24 * 30;
-        }
-        else if( sDBCertProfile.nNotBefore == 2 )
-        {
-            uNotBefore = 0;
-            uNotAfter = sDBCertProfile.nNotAfter * 60 * 60 * 24 * 365;
-        }
-        else
-        {
-            uNotBefore = sDBCertProfile.nNotBefore - now_t;
-            uNotAfter = sDBCertProfile.nNotAfter - now_t;
-        }
-*/
+
         JS_PKI_setIssueCertInfo( &sIssueCertInfo,
                                 sDBCertProfile.nVersion,
                                 sSerial,
@@ -580,6 +538,8 @@ int procP10CR( sqlite3* db, OSSL_CMP_CTX *pCTX, JDB_User *pDBUser, void *pBody, 
         JS_DB_setCert( &sDBNewCert,
                       -1,
                       now_t,
+                      uNotBefore,
+                      uNotAfter,
                       -1,
                       pDBUser->nNum,
                       sNewCertInfo.pSignAlgorithm,
@@ -731,28 +691,6 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
                          now_t,
                          &uNotBefore,
                          &uNotAfter );
-/*
-        if( sDBCertProfile.nNotBefore <= 0 )
-        {
-            uNotBefore = 0;
-            uNotAfter = sDBCertProfile.nNotAfter * 60 * 60 * 24;
-        }
-        else if( sDBCertProfile.nNotBefore == 1 )
-        {
-            uNotBefore = 0;
-            uNotAfter = sDBCertProfile.nNotAfter * 60 * 60 * 24 * 30;
-        }
-        else if( sDBCertProfile.nNotBefore == 2 )
-        {
-            uNotBefore = 0;
-            uNotAfter = sDBCertProfile.nNotAfter * 60 * 60 * 24 * 365;
-        }
-        else
-        {
-            uNotBefore = sDBCertProfile.nNotBefore - now_t;
-            uNotAfter = sDBCertProfile.nNotAfter - now_t;
-        }
-*/
 
         JS_PKI_setIssueCertInfo( &sIssueCertInfo,
                                 sDBCertProfile.nVersion,
@@ -779,6 +717,8 @@ int procKUR( sqlite3 *db, OSSL_CMP_CTX *pCTX, JDB_Cert *pDBCert, void *pBody, BI
         JS_DB_setCert( &sDBNewCert,
                        -1,
                        now_t,
+                      uNotBefore,
+                      uNotAfter,
                        -1,
                        pDBCert->nUserNum,
                        sNewCertInfo.pSignAlgorithm,

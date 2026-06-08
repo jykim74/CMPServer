@@ -15,8 +15,8 @@ MESSAGE( STATUS "ca_cmp_srv Start" )
 set( OPENSSL "openssl35" )
 
 add_executable(ca_cmp_srv
-	cmp_mock_srv.c
-	cmp_mock_srv.h
+#	cmp_mock_srv.c
+#	cmp_mock_srv.h
 	cmp_srv.h
 	cmp_srv.c
 	cmp_proc.c

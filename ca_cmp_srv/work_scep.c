@@ -205,6 +205,7 @@ int workPKIOperation( sqlite3* db, const BIN *pPKIReq, BIN *pCertRsp )
 {
     int ret = 0;
     int nType = 0;
+    int nFlag = 0;
 
     BIN binSignCert = {0,0};
     BIN binSenderNonce = {0,0};
@@ -215,6 +216,9 @@ int workPKIOperation( sqlite3* db, const BIN *pPKIReq, BIN *pCertRsp )
     BIN binEnvData = {0,0};
 
     BIN binSrvSenderNonce = {0,0};
+    char sResMsg[1024];
+
+    memset( sResMsg, 0x00, sizeof(sResMsg));
 
     ret = JS_SCEP_verifyParseSignedData( pPKIReq, &nType, &binSignCert, &binSenderNonce, &pTransID, &binData );
     if( ret != 0 )
@@ -225,11 +229,11 @@ int workPKIOperation( sqlite3* db, const BIN *pPKIReq, BIN *pCertRsp )
 
     if( g_pP11CTX )
     {
-        ret = JS_PKCS7_makeDevelopedDataByP11( &binData, &g_binCAPriKey, g_pP11CTX, &g_binCACert, &binDevData );
+        ret = JS_PKCS7_makeDevelopedDataByP11( &binData, &g_binCAPriKey, g_pP11CTX, &g_binCACert, nFlag, &binDevData, sResMsg );
     }
     else
     {
-        ret = JS_PKCS7_makeDevelopedData( &binData, &g_binCAPriKey, &g_binCACert, &binDevData );
+        ret = JS_PKCS7_makeDevelopedData( &binData, &g_binCAPriKey, &g_binCACert, nFlag, &binDevData, sResMsg );
     }
 
     if( ret != 0 )
@@ -267,7 +271,7 @@ int workPKIOperation( sqlite3* db, const BIN *pPKIReq, BIN *pCertRsp )
         goto end;
     }
 
-    ret = JS_PKCS7_makeEnvelopedData( "aes-256-cbc", &binResData, &binSignCert, &binEnvData );
+    ret = JS_PKCS7_makeEnvelopedData( "aes-256-cbc", &binResData, &binSignCert, nFlag, &binEnvData );
 
     JS_PKI_genRandom( 16, &binSrvSenderNonce );
 

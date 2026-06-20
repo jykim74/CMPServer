@@ -541,7 +541,6 @@ int Init( sqlite3* db )
 
     if( g_nConfigDB == 1 )
     {
-
         JDB_Cert sCert;
 
         memset( &sCert, 0x00, sizeof(sCert));
